@@ -16,7 +16,17 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <Link to="/dashboard">Submission Workflow</Link>
+        <Link to="/dashboard" className="brand-link">
+          <img 
+            src="/src/assets/sngce.jpg" 
+            alt="Workflow Logo" 
+            className="nav-logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <span className="brand-text">Workflow</span>
+        </Link>
       </div>
       <div className="nav-links">
         <Link to="/dashboard">Dashboard</Link>

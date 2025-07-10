@@ -156,6 +156,10 @@ function NewSubmission() {
         <label>Subject</label>
         <input type="text" name="subject" value={formStudent.subject} onChange={handleChangeStudent} className="subject-input" required />
       </div>
+      <div className="form-row">
+        <label>Department</label>
+        <input type="text" name="department" value={formStudent.department} onChange={handleChangeStudent} className="long-input" required />
+      </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
         <div className="checkboxes">
@@ -219,6 +223,10 @@ function NewSubmission() {
       <div className="form-row">
         <label>Subject</label>
         <input type="text" name="subject" value={formStaff.subject} onChange={handleChangeStaff} className="subject-input" required />
+      </div>
+      <div className="form-row">
+        <label>Department</label>
+        <input type="text" name="department" value={formStaff.department} onChange={handleChangeStaff} className="long-input" required />
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>

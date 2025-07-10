@@ -12,7 +12,15 @@
   z-index: 1000;
 }
 
-.nav-brand a {
+.nav-brand {
+  display: flex;
+  align-items: center;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 24px;
   font-weight: bold;
   color: #667eea;
@@ -20,8 +28,19 @@
   transition: color 0.3s ease;
 }
 
-.nav-brand a:hover {
+.brand-link:hover {
   color: #764ba2;
+}
+
+.nav-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-text {
+  font-size: 24px;
+  font-weight: bold;
 }
 
 .nav-links {
@@ -62,6 +81,14 @@
 @media (max-width: 768px) {
   .navbar {
     padding: 0 10px;
+  }
+  
+  .nav-logo {
+    height: 30px;
+  }
+  
+  .brand-text {
+    font-size: 18px;
   }
   
   .nav-links {
