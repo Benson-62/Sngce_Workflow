@@ -1,0 +1,251 @@
+/* Card-style outer container */
+.submission-outer {
+  min-height: calc(100vh - 70px);
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 40px 0;
+}
+
+.submission-main-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a2341;
+  margin-bottom: 32px;
+  margin-top: 0;
+}
+
+.submission-card {
+  background: #fff;
+  padding: 32px 32px 24px 32px;
+  border-radius: 14px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.form-title {
+  text-align: left;
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.form-meta-row {
+  display: flex;
+  gap: 32px;
+  justify-content: flex-start;
+  margin-bottom: 0;
+}
+
+.form-meta-row label {
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.form-meta-row input[type="text"],
+.form-meta-row input[type="date"] {
+  padding: 8px 12px;
+  border: 1.5px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 16px;
+  background: #f8f9fa;
+  min-width: 180px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.form-row label {
+  font-weight: 500;
+  min-width: 120px;
+  color: #222;
+}
+
+.subject-input, .long-input {
+  width: 100%;
+  min-width: 300px;
+  max-width: 100%;
+  font-size: 17px;
+  padding: 10px 12px;
+  border: 1.5px solid #e1e5e9;
+  border-radius: 6px;
+  background: #f8f9fa;
+  transition: border-color 0.2s;
+}
+
+.subject-input:focus, .long-input:focus {
+  border-color: #667eea;
+  outline: none;
+}
+
+.form-checkbox-group {
+  align-items: flex-start;
+}
+
+.checkbox-label {
+  min-width: 120px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 32px;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+textarea.long-input {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.form-btn-row {
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.submit-btn {
+  background: #2563eb;
+  color: white;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover {
+  background: #1746a2;
+}
+
+.cancel-btn {
+  background: #f3f4f6;
+  color: #222;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #e5e7eb;
+}
+
+@media (max-width: 800px) {
+  .submission-card {
+    padding: 18px 6px 12px 6px;
+    max-width: 98vw;
+  }
+  .form-meta-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .form-row label, .checkbox-label {
+    min-width: 90px;
+  }
+}
+
+@media print {
+  body {
+    font-family: 'Times New Roman', Times, serif !important;
+    background: white !important;
+  }
+  .submission-outer {
+    background: white !important;
+    padding: 0 !important;
+  }
+  .submission-card {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 auto !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-width: 210mm !important;
+    padding: 30mm 20mm 20mm 20mm !important;
+    font-size: 12pt !important;
+    color: #222 !important;
+    background: white !important;
+  }
+  .form-title, .submission-main-title {
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 18pt !important;
+    text-align: center !important;
+    margin-bottom: 18pt !important;
+    color: #111 !important;
+  }
+  .form-btn-row {
+    display: none !important;
+  }
+  .form-row, .form-meta-row {
+    font-size: 12pt !important;
+    margin-bottom: 10pt !important;
+    gap: 10pt !important;
+  }
+  .checkbox-label, .checkboxes, .checkbox-inline {
+    font-size: 12pt !important;
+  }
+  input, textarea {
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 12pt !important;
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    resize: none !important;
+  }
+  textarea {
+    min-height: 24pt !important;
+  }
+  label {
+    font-weight: bold !important;
+    color: #111 !important;
+  }
+  .submissions-table, .dashboard-header, .dashboard-content, .dashboard-page {
+    box-shadow: none !important;
+    background: white !important;
+  }
+}
+
+.print-btn {
+  background: #2563eb;
+  color: white;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 8px;
+}
+
+.print-btn:hover {
+  background: #1746a2;
+} 
