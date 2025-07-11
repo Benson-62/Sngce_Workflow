@@ -3,6 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import './NewSubmission.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Checkbox from '@mui/material/Checkbox';
+import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
 
 const initialStateStudent = {
   subject: '',
@@ -139,6 +143,26 @@ function NewSubmission() {
   };
 
   // --- Student Form ---
+  const handleStudentToChange = (event, value) => {
+    let newTo = value ? [value.value] : [];
+    if ((newTo.includes('principal') || newTo.includes('hod')) && !newTo.includes('faculty')) {
+      newTo = ['faculty'];
+    }
+    setFormStudent((prev) => ({ ...prev, to: newTo }));
+  };
+  // --- Staff Form ---
+  const handleStaffToChange = (event, value) => {
+    setFormStaff((prev) => ({ ...prev, to: value ? [value.value] : [] }));
+  };
+  const handleStudentPurposeChange = (event, value) => {
+    setFormStudent((prev) => ({ ...prev, purpose: value ? [value.value] : [] }));
+  };
+  const handleStaffPurposeChange = (event, value) => {
+    setFormStaff((prev) => ({ ...prev, purpose: value ? [value.value] : [] }));
+  };
+  const icon = <CheckBoxOutlineBlank fontSize="small" />;
+  const checkedIcon = <CheckBox fontSize="small" />;
+
   const studentForm = (
     <form className="submission-card" onSubmit={handleSubmitStudent} ref={formRef}>
       <h2 className="form-title">SUBMISSION</h2>
@@ -162,13 +186,23 @@ function NewSubmission() {
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
-        <div className="checkboxes">
-          {TO_OPTIONS_STUDENT.map((opt) => (
-            <label key={opt.value} className="checkbox-inline">
-              <input type="checkbox" value={opt.value} checked={formStudent.to.includes(opt.value)} onChange={(e) => handleCheckboxStudent(e, 'to')} disabled={(opt.value === 'faculty') && (formStudent.to.includes('principal') || formStudent.to.includes('hod'))} />
-              {opt.label}
-            </label>
-          ))}
+        <div className="checkboxes" style={{ width: '100%' }}>
+          <Autocomplete
+            options={TO_OPTIONS_STUDENT}
+            getOptionLabel={(option) => option.label}
+            value={TO_OPTIONS_STUDENT.find(opt => formStudent.to.includes(opt.value)) || null}
+            onChange={handleStudentToChange}
+            renderOption={(props, option) => (
+              <li {...props}>
+                {option.label}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} variant="outlined" label="To" placeholder="Select recipient" />
+            )}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            style={{ width: '100%' }}
+          />
         </div>
       </div>
       <div className="form-row">
@@ -177,13 +211,23 @@ function NewSubmission() {
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">Purpose of Submission:</div>
-        <div className="checkboxes">
-          {PURPOSE_OPTIONS.map((opt) => (
-            <label key={opt.value} className="checkbox-inline">
-              <input type="checkbox" value={opt.value} checked={formStudent.purpose.includes(opt.value)} onChange={(e) => handleCheckboxStudent(e, 'purpose')} />
-              {opt.label}
-            </label>
-          ))}
+        <div className="checkboxes" style={{ width: '100%' }}>
+          <Autocomplete
+            options={PURPOSE_OPTIONS}
+            getOptionLabel={(option) => option.label}
+            value={PURPOSE_OPTIONS.find(opt => formStudent.purpose.includes(opt.value)) || null}
+            onChange={handleStudentPurposeChange}
+            renderOption={(props, option) => (
+              <li {...props}>
+                {option.label}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} variant="outlined" label="Purpose of Submission" placeholder="Select purpose" />
+            )}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            style={{ width: '100%' }}
+          />
         </div>
       </div>
       <div className="form-row">
@@ -230,13 +274,23 @@ function NewSubmission() {
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
-        <div className="checkboxes">
-          {TO_OPTIONS_STAFF.map((opt) => (
-            <label key={opt.value} className="checkbox-inline">
-              <input type="checkbox" value={opt.value} checked={formStaff.to.includes(opt.value)} onChange={(e) => handleCheckboxStaff(e, 'to')} />
-              {opt.label}
-            </label>
-          ))}
+        <div className="checkboxes" style={{ width: '100%' }}>
+          <Autocomplete
+            options={TO_OPTIONS_STAFF}
+            getOptionLabel={(option) => option.label}
+            value={TO_OPTIONS_STAFF.find(opt => formStaff.to.includes(opt.value)) || null}
+            onChange={handleStaffToChange}
+            renderOption={(props, option) => (
+              <li {...props}>
+                {option.label}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} variant="outlined" label="To" placeholder="Select recipient" />
+            )}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            style={{ width: '100%' }}
+          />
         </div>
       </div>
       <div className="form-row">
@@ -245,13 +299,23 @@ function NewSubmission() {
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">Purpose of Submission:</div>
-        <div className="checkboxes">
-          {PURPOSE_OPTIONS.map((opt) => (
-            <label key={opt.value} className="checkbox-inline">
-              <input type="checkbox" value={opt.value} checked={formStaff.purpose.includes(opt.value)} onChange={(e) => handleCheckboxStaff(e, 'purpose')} />
-              {opt.label}
-            </label>
-          ))}
+        <div className="checkboxes" style={{ width: '100%' }}>
+          <Autocomplete
+            options={PURPOSE_OPTIONS}
+            getOptionLabel={(option) => option.label}
+            value={PURPOSE_OPTIONS.find(opt => formStaff.purpose.includes(opt.value)) || null}
+            onChange={handleStaffPurposeChange}
+            renderOption={(props, option) => (
+              <li {...props}>
+                {option.label}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} variant="outlined" label="Purpose of Submission" placeholder="Select purpose" />
+            )}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            style={{ width: '100%' }}
+          />
         </div>
       </div>
       <div className="form-row">

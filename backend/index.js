@@ -16,12 +16,12 @@ app.get('/',(req,res)=>(
 ))
 
 app.post('/createAccount',async(req,res)=>{  
-    var {fName,lName,username, password, role} = req.body
+    var {fName,lName,email, password, role} = req.body
     console.log(password)
-    console.log(username)
+    console.log(email)
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
-        await logmodel({fName,lName,username, password : hashedPassword,role:role}).save()
+        await logmodel({fName,lName,email : email, password : hashedPassword,role:role}).save()
         res.send("user added")
     } catch (error) {
         console.log(error);
@@ -29,9 +29,9 @@ app.post('/createAccount',async(req,res)=>{
 });
 
 app.post('/login',async(req,res)=>{
-    var {username , password} = req.body;
+    var {email, password, role} = req.body;
     try {
-        var usr =await logmodel.findOne({username});
+        var usr =await logmodel.findOne({email});
         if(!usr){
             return res.status(400).send("Invalid Credentials Usrname")
         }
@@ -43,7 +43,8 @@ app.post('/login',async(req,res)=>{
             _id: usr._id,
             fName : usr.fName,
             lName : usr.lName,
-            username: usr.username,
+            email: usr.email,
+            role: usr.role
           });
     } catch (error) {
         console.log(error);
