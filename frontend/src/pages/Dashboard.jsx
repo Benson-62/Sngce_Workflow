@@ -10,6 +10,7 @@ function getUserRole() {
 function Dashboard() {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState(getUserRole());
+  console.log(userRole);
 
   useEffect(() => {
     setUserRole(getUserRole());

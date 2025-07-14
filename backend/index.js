@@ -18,8 +18,8 @@ app.use(express.json());
 
 app.post('/createAccount',async(req,res)=>{  
     var {fName,lName,email, password, role} = req.body
-    console.log(password)
     console.log(email)
+    console.log(password)
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
         await logmodel({fName,lName,email : email, password : hashedPassword,role:role}).save()
