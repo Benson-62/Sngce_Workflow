@@ -9,7 +9,11 @@ function Navbar() {
   const userRole = 'originator'; // Placeholder
 
   const handleLogout = () => {
-    // TODO: Implement logout logic
+    // Clear all auth/user info from localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
     navigate('/login');
   };
 

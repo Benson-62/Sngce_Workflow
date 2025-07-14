@@ -3,6 +3,7 @@ require('./connection');
 var logmodel=require('./models/User');
 var cors = require('cors')
 var bcrypt = require('bcrypt')
+var jwt = require('jsonwebtoken');
 const PORT = process.env.PORT || 3096;
 
 
@@ -11,9 +12,9 @@ var app=express();
 app.use(cors())
 app.use(express.json());
 
-app.get('/',(req,res)=>(
-  res.send('Hello from backend')
-))
+// app.get('/',(req,res)=>(
+//   res.send('Hello from backend')
+// ))
 
 app.post('/createAccount',async(req,res)=>{  
     var {fName,lName,email, password, role} = req.body
@@ -39,12 +40,19 @@ app.post('/login',async(req,res)=>{
         if (!isMatch) {
             return res.status(400).send("Invalid credentials Passwrd");
         }
+        // Generate JWT
+        const token = jwt.sign({
+          _id: usr._id,
+          email: usr.email,
+          role: usr.role
+        }, 'pineapplepie', { expiresIn: '2h' });
         res.send({
             _id: usr._id,
             fName : usr.fName,
             lName : usr.lName,
             email: usr.email,
-            role: usr.role
+            role: usr.role,
+            token
           });
     } catch (error) {
         console.log(error);

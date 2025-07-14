@@ -74,7 +74,11 @@ function NewSubmission() {
   const formRef = useRef();
 
   useEffect(() => {
-    setUserRole(getUserRole());
+    var userRole = localStorage.getItem('userRole');
+    var jtoken = localStorage.getItem('token');
+    console.log(userRole);
+    console.log(jtoken);
+    // setUserRole(getUserRole());
   }, []);
 
   // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
@@ -329,17 +333,6 @@ function NewSubmission() {
       <div className="form-row">
         <label>Remarks (if any):</label>
         <input type="text" name="remarks" value={formStaff.remarks} onChange={handleChangeStaff} className="long-input" />
-      </div>
-      <div className="form-row form-checkbox-group">
-        <div className="checkbox-label">Actions Taken:</div>
-        <div className="checkboxes">
-          {ACTION_OPTIONS.map((opt) => (
-            <label key={opt.value} className="checkbox-inline">
-              <input type="checkbox" value={opt.value} checked={formStaff.actions.includes(opt.value)} onChange={(e) => handleCheckboxStaff(e, 'actions')} />
-              {opt.label}
-            </label>
-          ))}
-        </div>
       </div>
       <div className="form-row form-btn-row">
         <button type="submit" className="submit-btn">Submit</button>

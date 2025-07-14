@@ -25,17 +25,33 @@ function LoginPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement real login logic
+    setError('');
     if (!formData.email || !formData.password) {
       setError('Please enter email and password');
       return;
     }
-    const role = detectRole(formData.email);
-    localStorage.setItem('userRole', role);
-    localStorage.setItem('userEmail', formData.email);
-    navigate('/dashboard');
+    try {
+      const response = await fetch('http://localhost:3096/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: formData.password })
+      });
+      if (!response.ok) {
+        const msg = await response.text();
+        setError(msg || 'Login failed');
+        return;
+      }
+      const data = await response.json();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userRole', data.role);
+      localStorage.setItem('userEmail', data.email);
+      localStorage.setItem('userName', `${data.fName} ${data.lName}`);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Network error');
+    }
   };
 
   return (
