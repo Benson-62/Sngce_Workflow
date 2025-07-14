@@ -48,6 +48,7 @@ function LoginPage() {
       localStorage.setItem('userRole', data.role);
       localStorage.setItem('userEmail', data.email);
       localStorage.setItem('userName', `${data.fName} ${data.lName}`);
+      window.dispatchEvent(new Event('authChanged'));
       navigate('/dashboard');
     } catch (err) {
       setError('Network error');
