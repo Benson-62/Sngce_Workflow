@@ -122,7 +122,10 @@ function NewSubmission() {
     if (userRole === 'Student') {
       const mustIncludeFaculty = formStudent.to.includes('principal') || formStudent.to.includes('hod');
       if (mustIncludeFaculty && !formStudent.to.includes('faculty')) {
-        setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to] }));
+        // Only update if 'faculty' is not already the first element
+        if (formStudent.to[0] !== 'faculty') {
+          setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to.filter(v => v !== 'faculty')] }));
+        }
       }
     }
     // eslint-disable-next-line
@@ -548,7 +551,7 @@ function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView,
   return (
     <div className="submission-outer">
       <h1 className="submission-main-title">Submission and Approval</h1>
-      <RoleSubmissionForm userRole={userRole} studentForm={studentForm} staffForm={staffForm} printLetterView={printLetterView} showPrintView={showPrintView} />
+      {showPrintView ? printLetterView : (userRole === 'student' ? studentForm : staffForm)}
     </div>
   );
 }
