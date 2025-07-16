@@ -92,6 +92,8 @@ function NewSubmission() {
     ...initialStateStaff,
     subject: '', // will store the value of the dropdown
   });
+  var [sForm, setSForm] = useState({"date" : "", "to" : [], "others" : "", "subject" : "", "department" : "", "details" : "", "attachment" : null})
+  var [fForm, setFForm] = useState({"date" : "", "to" : [], "others" : "", "subject" : "", "department" : "", "details" : "", "attachment" : null})
   const today = new Date().toISOString().slice(0, 10);
   const submissionNo = '001/2025';
   const formRef = useRef();
@@ -135,7 +137,7 @@ function NewSubmission() {
     setFormStudent({ ...formStudent, [e.target.name]: e.target.value });
   };
   const handleChangeStaff = (e) => {
-    setFormStaff({ ...formStaff, [e.target.name]: e.target.value });
+    setSForm({ ...sForm, [e.target.name]: e.target.value });
   };
 
   const handleCheckboxStudent = (e, group) => {
@@ -169,6 +171,7 @@ function NewSubmission() {
     // Save submission to localStorage
     const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
     
+    
     const newSubmission = {
       id: Date.now(),
       subject: formStudent.subject,
@@ -187,15 +190,15 @@ function NewSubmission() {
     e.preventDefault();
     try {
       const formData = new FormData();
-      formData.append('date', new Date().toISOString().slice(0, 10));
-      formData.append('to', JSON.stringify(formStaff.to));
-      formData.append('others', formStaff.toOthers);
-      formData.append('department', formStaff.department);
-      formData.append('details', formStaff.details);
-      if (attachmentStaff) {
-        formData.append('attatchment', attachmentStaff);
-      }
-      console.log(formData)
+      setSForm({
+        date: new Date().toISOString().slice(0, 10),
+        to: formStaff.to,
+        others: formStaff.toOthers,
+        subject: formStaff.subject,
+        department: formStaff.department,
+        details: formStaff.details,
+        attachment: attachmentStaff,
+      })
       // formData.append('date', new Date().toISOString().slice(0, 10));
       // formData.append('to', JSON.stringify(formStaff.to));
       // formData.append('others', formStaff.toOthers);
@@ -402,14 +405,14 @@ function NewSubmission() {
         </div>
         <div>
           <label>Date:</label>
-          <input type="date" value={today} readOnly />
+          <input type="date" value={sForm.date} readOnly />
         </div>
       </div>
       <div className="form-row">
         <label>Subject</label>
         <select
           name="subject"
-          value={formStaff.subject}
+          value={sForm.subject}
           onChange={handleChangeStaff}
           className="subject-input"
           required
