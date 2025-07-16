@@ -5,8 +5,8 @@ import './Navbar.css';
 
 function Navbar() {
   const navigate = useNavigate();
-  // TODO: Get user role from context/state
-  const userRole = 'originator'; // Placeholder
+  // Get user role from localStorage
+  const userRole = localStorage.getItem('userRole') || 'originator';
 
   const handleLogout = () => {
     // Clear all auth/user info from localStorage
@@ -20,7 +20,7 @@ function Navbar() {
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <Link to="/dashboard" className="brand-link">
+        <Link to={userRole === 'admin' ? '/admin' : '/dashboard'} className="brand-link">
           <img 
             src="/src/assets/sngce.jpg" 
             alt="Workflow Logo" 
@@ -33,14 +33,10 @@ function Navbar() {
         </Link>
       </div>
       <div className="nav-links">
-        <Link to="/dashboard">Dashboard</Link>
+        <Link to={userRole === 'admin' ? '/admin' : '/dashboard'}>Dashboard</Link>
         <Link to="/submission/new">New Submission</Link>
         {userRole === 'admin' && (
-          <>
-            <Link to="/admin">Admin</Link>
-            <Link to="/admin/users">Users</Link>
-            <Link to="/admin/logs">Logs</Link>
-          </>
+          <Link to="/admin">Admin</Link>
         )}
         <button onClick={handleLogout} className="logout-btn">Logout</button>
       </div>
