@@ -168,6 +168,7 @@ function NewSubmission() {
     e.preventDefault();
     // Save submission to localStorage
     const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
+    
     const newSubmission = {
       id: Date.now(),
       subject: formStudent.subject,
@@ -195,6 +196,15 @@ function NewSubmission() {
         formData.append('attatchment', attachmentStaff);
       }
       console.log(formData)
+      // formData.append('date', new Date().toISOString().slice(0, 10));
+      // formData.append('to', JSON.stringify(formStaff.to));
+      // formData.append('others', formStaff.toOthers);
+      // formData.append('department', formStaff.department);
+      // formData.append('details', formStaff.details);
+      // if (attachmentStaff) {
+      //   formData.append('attatchment', attachmentStaff);
+      // }
+      console.log(sForm)
       await axios.post('http://localhost:3096/facultyFormSubmission', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',

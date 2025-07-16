@@ -10,6 +10,10 @@ const facultyFormSchema = new mongoose.Schema({
         type: Date,
         required: true
     },
+    subject : {
+        type: String,
+        required: true
+    },
     to: {
         type: [String],
         required: true
