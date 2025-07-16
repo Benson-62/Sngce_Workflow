@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import NewSubmission from './pages/NewSubmission';
+import AdminPanel from './AdminPanel';
 import './App.css';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submission/new" element={<NewSubmission />} />
+          <Route path="/admin" element={<AdminPanel />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
