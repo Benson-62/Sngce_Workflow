@@ -29,3 +29,34 @@ A full-stack application for managing submission and approval workflows with use
 - Approval, return, and forward actions
 - Dashboard views for each role
 - Logs, notifications, and more 
+
+
+## Further futures to impliment
+
+
+
+- options for both save & submit + 5 min time frame before send
+-  sent and Arrive.
+- Remarks - for each 
+- cant access anything without login
+- 
+- admin page to enter new users.
+- urgency 1 , 2 , 3 messages.
+- subject being shown in messages
+-  approval  & reject 
+- multiple hod email selector ,also for avarachan sir 
+- subject selection?
+- File Uploads: For attaching documents
+- sending to multiple hods or faculty from top.
+- Email Notifications: For updates at each step ?
+- Approve (with options: return to originator, forward to others, approve for payment) ?
+-  Return to lower level with remarks ,Forward with remarks , Final approval?
+- Admin (optional): Track all flows, manage users ?
+- State saved in MongoDB (status, current reviewer, history log) ?
+- Remarks history with timestamp ?
+data base - view
+
+completed
+- Authentication: JWT (for roles like Originator, HoD, Principal, etc.) 
+
+
