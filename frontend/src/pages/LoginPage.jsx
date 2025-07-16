@@ -32,6 +32,18 @@ function LoginPage() {
       setError('Please enter email and password');
       return;
     }
+    // Admin login shortcut
+    if (
+      formData.email === 'admin@sngce.ac.in' &&
+      formData.password === 'admin@123'
+    ) {
+      localStorage.setItem('token', 'admin-token');
+      localStorage.setItem('userRole', 'admin');
+      localStorage.setItem('userEmail', 'admin@sngce.ac.in');
+      localStorage.setItem('userName', 'Admin');
+      navigate('/admin');
+      return;
+    }
     try {
       const response = await fetch('http://localhost:3096/login', {
         method: 'POST',
@@ -83,9 +95,9 @@ function LoginPage() {
           {error && <div className="error-msg">{error}</div>}
           <button type="submit" className="login-btn">Login</button>
         </form>
-        <p className="register-link">
+        {/* <p className="register-link">
           Don't have an account? <span onClick={() => navigate('/register')}>Register here</span>
-        </p>
+        </p> */}
       </div>
     </div>
   );
