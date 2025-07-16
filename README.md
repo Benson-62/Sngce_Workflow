@@ -38,8 +38,8 @@ A full-stack application for managing submission and approval workflows with use
 - options for both save & submit + 5 min time frame before send
 -  sent and Arrive.
 - Remarks - for each 
-- cant access anything without login
-- 
+- cant access anything without login 
+-  
 - admin page to enter new users.
 - urgency 1 , 2 , 3 messages.
 - subject being shown in messages
@@ -58,5 +58,16 @@ data base - view
 
 completed
 - Authentication: JWT (for roles like Originator, HoD, Principal, etc.) 
+
+
+---
+
+## Git Commands
+
+to fastforward main
+
+1. `git switch asbir1`
+2. `git fetch origin`
+3. `git merge origin/main`
 
 
