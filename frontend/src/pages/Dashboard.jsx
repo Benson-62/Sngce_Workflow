@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 function getUserRole() {
-  return localStorage.getItem('userRole') || 'staff';
+  return localStorage.getItem('userRole');
 }
 
 function Dashboard() {
