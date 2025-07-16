@@ -53,13 +53,6 @@ function Navbar() {
       <div className="nav-links">
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/submission/new">New Submission</Link>
-        {userRole === 'admin' && (
-          <>
-            <Link to="/admin">Admin</Link>
-            <Link to="/admin/users">Users</Link>
-            <Link to="/admin/logs">Logs</Link>
-          </>
-        )}
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         ) : (

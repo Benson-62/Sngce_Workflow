@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
+import ReceivedForms from './ReceivedForms';
 
 function getUserRole() {
   return localStorage.getItem('userRole') || 'staff';
@@ -90,19 +91,29 @@ function Dashboard() {
 
   const renderStaffDashboard = () => {
     const staffSubmissions = submissions.filter(s => s.owner === 'staff');
+    const staffSubmissionsPreview = staffSubmissions.slice(0, 5);
     return (
       <div className="dashboard-content">
-        <div className="dashboard-header">
+        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2>All Submissions <span className="role-badge staff">Staff</span></h2>
-          <button 
-            className="new-submission-btn"
-            onClick={() => navigate('/submission/new')}
-          >
-            New Submission
-          </button>
+          <div>
+            <button 
+              className="new-submission-btn"
+              onClick={() => navigate('/submission/new')}
+            >
+              New Submission
+            </button>
+            <button
+              className="view-all-btn"
+              style={{ marginLeft: 12, background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 500 }}
+              onClick={() => navigate('/mysubmission')}
+            >
+              View All
+            </button>
+          </div>
         </div>
         <div className="submissions-table">
-          {staffSubmissions.length === 0 ? (
+          {staffSubmissionsPreview.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No submissions found.</div>
           ) : (
             <table>
@@ -118,7 +129,7 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {staffSubmissions.map(submission => (
+                {staffSubmissionsPreview.map(submission => (
                   <tr key={submission.id}>
                     <td>#{submission.id}</td>
                     <td>{submission.subject}</td>
@@ -143,6 +154,10 @@ function Dashboard() {
               </tbody>
             </table>
           )}
+        </div>
+        {/* Received Forms Section */}
+        <div style={{ marginTop: '2.5rem' }}>
+          <ReceivedForms previewMode={true} />
         </div>
       </div>
     );
