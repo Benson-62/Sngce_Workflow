@@ -2,24 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
+import { jwtDecode } from "jwt-decode";
 
-function getUserRole() {
-  return localStorage.getItem('userRole');
-}
 
-function Dashboard() {
-  const navigate = useNavigate();
-  const [userRole, setUserRole] = useState(getUserRole());
-  console.log(userRole);
 
-  useEffect(() => {
-    setUserRole(getUserRole());
-  }, []);
-
-  // TODO: Replace with real submissions from backend/API
-  const submissions = [];
-
-  const renderStudentDashboard = () => {
+function RoleDashboard({ userRole, submissions, navigate }) {
+  if (userRole === 'student' || userRole === 'Student') {
     const studentSubmissions = submissions.filter(s => s.owner === 'student');
     return (
       <div className="dashboard-content">
@@ -64,7 +52,7 @@ function Dashboard() {
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
-                      <span className={`status ${submission.status.toLowerCase()}`}>
+                      <span className={`status ${submission.status?.toLowerCase?.() || ''}`}>
                         {submission.status}
                       </span>
                     </td>
@@ -86,9 +74,7 @@ function Dashboard() {
         </div>
       </div>
     );
-  };
-
-  const renderStaffDashboard = () => {
+  } else {
     const staffSubmissions = submissions.filter(s => s.owner === 'staff');
     return (
       <div className="dashboard-content">
@@ -124,7 +110,7 @@ function Dashboard() {
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
-                      <span className={`status ${submission.status.toLowerCase()}`}>
+                      <span className={`status ${submission.status?.toLowerCase?.() || ''}`}>
                         {submission.status}
                       </span>
                     </td>
@@ -146,11 +132,31 @@ function Dashboard() {
         </div>
       </div>
     );
-  };
+  }
+}
 
+function Dashboard() {
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState();
+  useEffect(() => {
+      var token = jwtDecode(localStorage.getItem('token'));
+      // console.log(token)
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      try {
+        setUserRole(token.role)
+      } catch (err) {
+        console.error("Invalid token");
+        navigate('/login');
+      }
+    }, []);
+  // TODO: Replace with real submissions from backend/API
+  const submissions = [];
   return (
     <div className="dashboard-page">
-      {userRole === 'student' ? renderStudentDashboard() : renderStaffDashboard()}
+      <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
     </div>
   );
 }

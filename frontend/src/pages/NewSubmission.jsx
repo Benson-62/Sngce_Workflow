@@ -8,6 +8,8 @@ import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const initialStateStudent = {
   subject: '',
@@ -75,12 +77,13 @@ const DEPARTMENT_OPTIONS = [
   { name: 'Master of Computer Applications', short: 'MCA' }
 ];
 
-function getUserRole() {
-  return localStorage.getItem('userRole') || 'staff';
-}
+// function getToken() {
+//   return localStorage.getItem('token');
+//   console.log(jwtDecode(token))
+// }
 
 function NewSubmission() {
-  const [userRole, setUserRole] = useState(getUserRole());
+  const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({
     ...initialStateStudent,
     subject: '', // will store the value of the dropdown
@@ -99,16 +102,24 @@ function NewSubmission() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    var userRole = localStorage.getItem('userRole');
-    var jtoken = localStorage.getItem('token');
-    console.log(userRole);
-    console.log(jtoken);
-    // setUserRole(getUserRole());
+    var token = jwtDecode(localStorage.getItem('token'));
+    // console.log(token)
+    if (!token) {
+    navigate('/login');
+    return;
+  }
+  try {
+    setUserRole(token.role)
+  } catch (err) {
+    console.error("Invalid token");
+    navigate('/login');
+  }
+    
   }, []);
 
   // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
   useEffect(() => {
-    if (userRole === 'student') {
+    if (userRole === 'Student') {
       const mustIncludeFaculty = formStudent.to.includes('principal') || formStudent.to.includes('hod');
       if (mustIncludeFaculty && !formStudent.to.includes('faculty')) {
         setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to] }));
@@ -128,7 +139,7 @@ function NewSubmission() {
     const { value, checked } = e.target;
     setFormStudent((prev) => {
       let arr = prev[group];
-      if (group === 'to' && value === 'faculty') {
+      if (group === 'to' && value === 'Faculty') {
         if ((prev.to.includes('principal') || prev.to.includes('hod')) && !checked) {
           return prev; // Don't allow unchecking
         }
@@ -168,23 +179,29 @@ function NewSubmission() {
     localStorage.setItem('mysubmissions', JSON.stringify(submissions));
     navigate('/mysubmission');
   };
-  const handleSubmitStaff = (e) => {
+  const handleSubmitStaff = async (e) => {
     e.preventDefault();
-    // Save submission to localStorage
-    const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
-    const newSubmission = {
-      id: Date.now(),
-      subject: formStaff.subject,
-      department: formStaff.department,
-      to: formStaff.to,
-      toOthers: formStaff.toOthers,
-      details: formStaff.details,
-      date: new Date().toISOString().slice(0, 10),
-      owner: 'staff',
-    };
-    submissions.push(newSubmission);
-    localStorage.setItem('mysubmissions', JSON.stringify(submissions));
-    navigate('/mysubmission');
+    try {
+      const formData = new FormData();
+      formData.append('date', new Date().toISOString().slice(0, 10));
+      formData.append('to', JSON.stringify(formStaff.to));
+      formData.append('others', formStaff.toOthers);
+      formData.append('department', formStaff.department);
+      formData.append('details', formStaff.details);
+      if (attachmentStaff) {
+        formData.append('attatchment', attachmentStaff);
+      }
+      console.log(formData)
+      await axios.post('http://localhost:3096/facultyFormSubmission', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      navigate('/mysubmission');
+    } catch (error) {
+      alert('Submission failed. Please try again.');
+      console.error(error);
+    }
   };
 
   // Print as a letter, not as a form
@@ -200,7 +217,7 @@ function NewSubmission() {
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
     // Add attachment on second page if present and is image or PDF
-    const attachment = userRole === 'student' ? attachmentStudent : attachmentStaff;
+    const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
     if (attachment) {
       pdf.addPage();
       if (attachment.type.startsWith('image/')) {
@@ -522,10 +539,16 @@ function NewSubmission() {
     </div>
   );
 
+function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView, showPrintView }) {
+  if (showPrintView) return printLetterView;
+  if (userRole === 'Student') return studentForm;
+  return staffForm;
+}
+
   return (
     <div className="submission-outer">
       <h1 className="submission-main-title">Submission and Approval</h1>
-      {showPrintView ? printLetterView : (userRole === 'student' ? studentForm : staffForm)}
+      <RoleSubmissionForm userRole={userRole} studentForm={studentForm} staffForm={staffForm} printLetterView={printLetterView} showPrintView={showPrintView} />
     </div>
   );
 }

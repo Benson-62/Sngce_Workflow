@@ -62,9 +62,9 @@ function Navbar() {
         )}
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
-        ) : (
-          <button onClick={() => navigate('/login')} className="logout-btn">Login</button>
-        )}
+        ) : null 
+          // (<button onClick={() => navigate('/login')} className="logout-btn">Login</button>)
+        }
       </div>
     </nav>
   );

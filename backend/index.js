@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const autoIncrement = require('mongoose-id-autoincrement');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -15,7 +14,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-autoIncrement.initialize(mongoose.connection);
 
 const fFormModel = require('./models/facultyForm');
 
