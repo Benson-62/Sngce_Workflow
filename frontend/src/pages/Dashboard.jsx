@@ -140,7 +140,7 @@ function Dashboard() {
   const [userRole, setUserRole] = useState();
   useEffect(() => {
       var token = jwtDecode(localStorage.getItem('token'));
-      // console.log(token)
+      console.log(token)
       if (!token) {
         navigate('/login');
         return;

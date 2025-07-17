@@ -12,18 +12,60 @@ const PORT = process.env.PORT || 3096;
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
-
+// Models
 const fFormModel = require('./models/facultyForm');
+const sFormModel = require('./models/studentForm');
+const fAdvisorModel = require('./models/facultyAdvisor');
 
 // Routes
 
+app.get('/getFacultyAdvisor',async(req,res)=>{
+  var {year, department} = req.body;
+  try{
+    const adv  = await fAdvisorModel.find({
+      year, department
+    })
+    console.log('successful')
+    console.log(adv)
+    res.send(adv)
+  }catch (error){
+    console.log(error)
+    res.send(error)
+  }
+})
+
+app.post('/createFacultyAdvisor', async (req,res)=> {
+  const { year, department, facultyNames} = req.body;
+  try {
+    await fAdvisorModel({year, department, facultyNames}).save();
+    console.log("Saved to DB!");
+    res.send("Saved to DB!");
+  } catch (error){
+    console.log(error);
+    res.send(error);
+  }
+});
+
 app.post('/facultyFormSubmission', async (req, res) => {
-  const { date, to, others, department, details, attatchment } = req.body;
+  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
   console.log(req.body);
   try {
-    await fFormModel({ date, to, others, department, details, attatchment }).save();
+    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("form submitted!")
+    res.send('Form submitted');
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Form submission failed");
+  }
+});
+app.post('/studentFormSubmission', async (req, res) => {
+  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  console.log(req.body);
+  try {
+    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("form submitted!")
     res.send('Form submitted');
   } catch (error) {
     console.log(error);

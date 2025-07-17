@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
 
-const facultyFormSchema = new mongoose.Schema({
+const studentFormSchema = new mongoose.Schema({
     formNo: {
         type: Number,
         unique: true
@@ -11,7 +11,7 @@ const facultyFormSchema = new mongoose.Schema({
         required: true
     },
     to: {
-        type: String,
+        type: [String],
         required: true
     },
     subject: {
@@ -32,10 +32,19 @@ const facultyFormSchema = new mongoose.Schema({
         file: { type: Buffer},
         filename: { type: String},
         mimetype: { type: String}
+    },
+    status : {
+        type : String,
+        enum : ['awaiting', 'forwarded', 'accepted', 'rejected'],
+        default : 'awaiting'
+    },
+    submittedBy : {
+        type : String,
+        required : true
     }
 }, { timestamps: true });
 
-facultyFormSchema.plugin(AutoIncrement, { inc_field: 'formNo' });
+studentFormSchema.plugin(AutoIncrement, { inc_field: 'studentFormNo' });
 
-const FacultyForm = mongoose.model("FacultyForm", facultyFormSchema);
-module.exports = FacultyForm;
+const studentForm = mongoose.model("StudentForm", studentFormSchema);
+module.exports = studentForm;

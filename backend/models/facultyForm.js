@@ -31,10 +31,19 @@ const facultyFormSchema = new mongoose.Schema({
         file: { type: Buffer},
         filename: { type: String},
         mimetype: { type: String}
+    },
+    status : {
+        type : String,
+        enum : ['awaiting', 'forwarded', 'accepted', 'rejected'],
+        default : 'awaiting'
+    },
+    submittedBy : {
+        type : String,
+        required : true
     }
 }, { timestamps: true });
 
-facultyFormSchema.plugin(AutoIncrement, { inc_field: 'formNo' });
+facultyFormSchema.plugin(AutoIncrement, { inc_field: 'facultyFormNo' });
 
 
 // facultyFormSchema.plugin(AutoIncrement.plugin, {
