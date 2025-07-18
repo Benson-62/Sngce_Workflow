@@ -8,6 +8,8 @@ import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const initialStateStudent = {
   subject: '',
@@ -75,12 +77,13 @@ const DEPARTMENT_OPTIONS = [
   { name: 'Master of Computer Applications', short: 'MCA' }
 ];
 
-function getUserRole() {
-  return localStorage.getItem('userRole') || 'staff';
-}
+// function getToken() {
+//   return localStorage.getItem('token');
+//   console.log(jwtDecode(token))
+// }
 
 function NewSubmission() {
-  const [userRole, setUserRole] = useState(getUserRole());
+  const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({
     ...initialStateStudent,
     subject: '', // will store the value of the dropdown
@@ -97,21 +100,44 @@ function NewSubmission() {
   const [attachmentStudent, setAttachmentStudent] = useState(null);
   const [attachmentStaff, setAttachmentStaff] = useState(null);
   const navigate = useNavigate();
+  var token;
+  var [email, setEmail]= useState('');
 
   useEffect(() => {
-    var userRole = localStorage.getItem('userRole');
-    var jtoken = localStorage.getItem('token');
-    console.log(userRole);
-    console.log(jtoken);
-    // setUserRole(getUserRole());
+    token = jwtDecode(localStorage.getItem('token'));
+    setEmail(token.email);
+    console.log(email)
+    if (!token) {
+    navigate('/login');
+    return;
+  }
+  try {
+    setUserRole(token.role)
+  } catch (err) {
+    console.error("Invalid token");
+    navigate('/login');
+  }
+    
   }, []);
+  // File conversion
+  const toBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file); // converts to base64 with MIME prefix
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
   // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
   useEffect(() => {
-    if (userRole === 'student') {
+    if (userRole === 'Student') {
       const mustIncludeFaculty = formStudent.to.includes('principal') || formStudent.to.includes('hod');
       if (mustIncludeFaculty && !formStudent.to.includes('faculty')) {
-        setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to] }));
+        // Only update if 'faculty' is not already the first element
+        if (formStudent.to[0] !== 'faculty') {
+          setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to.filter(v => v !== 'faculty')] }));
+        }
       }
     }
     // eslint-disable-next-line
@@ -128,7 +154,7 @@ function NewSubmission() {
     const { value, checked } = e.target;
     setFormStudent((prev) => {
       let arr = prev[group];
-      if (group === 'to' && value === 'faculty') {
+      if (group === 'to' && value === 'Faculty') {
         if ((prev.to.includes('principal') || prev.to.includes('hod')) && !checked) {
           return prev; // Don't allow unchecking
         }
@@ -150,41 +176,71 @@ function NewSubmission() {
     });
   };
 
-  const handleSubmitStudent = (e) => {
+  const handleSubmitStudent = async (e) => {
     e.preventDefault();
-    // Save submission to localStorage
-    const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
-    const newSubmission = {
-      id: Date.now(),
-      subject: formStudent.subject,
-      department: formStudent.department,
-      to: formStudent.to,
-      toOthers: formStudent.toOthers,
-      details: formStudent.details,
-      date: new Date().toISOString().slice(0, 10),
-      owner: 'student',
-    };
-    submissions.push(newSubmission);
-    localStorage.setItem('mysubmissions', JSON.stringify(submissions));
-    navigate('/mysubmission');
+    let attachment = null;
+    if (attachmentStudent) {
+      const encodedFile = await toBase64(attachmentStudent);
+      attachment = {
+        file: encodedFile.split(',')[1], // Base64 content only
+        filename: attachmentStudent.name,
+        mimetype: attachmentStudent.type,
+      };
+    }
+    try {
+      const payload = JSON.stringify({
+        date: new Date().toISOString().slice(0, 10),
+        to: formStudent.to, // already an array
+        subject: formStudent.subject,
+        others: formStudent.toOthers,
+        department: formStudent.department,
+        details: formStudent.details,
+        submittedBy: String(email),
+        attachment: attachment,
+      });
+      await axios.post('http://localhost:3096/studentFormSubmission', payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      navigate('/mysubmission');
+    } catch (error) {
+      alert('Submission failed. Please try again.');
+      console.error(error);
+    }
   };
-  const handleSubmitStaff = (e) => {
+  const handleSubmitStaff = async (e) => {
     e.preventDefault();
-    // Save submission to localStorage
-    const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
-    const newSubmission = {
-      id: Date.now(),
-      subject: formStaff.subject,
-      department: formStaff.department,
-      to: formStaff.to,
-      toOthers: formStaff.toOthers,
-      details: formStaff.details,
-      date: new Date().toISOString().slice(0, 10),
-      owner: 'staff',
-    };
-    submissions.push(newSubmission);
-    localStorage.setItem('mysubmissions', JSON.stringify(submissions));
-    navigate('/mysubmission');
+    let attachment = null;
+    if (attachmentStaff) {
+      const encodedFile = await toBase64(attachmentStaff);
+      attachment = {
+        file: encodedFile.split(',')[1], // Base64 content only
+        filename: attachmentStaff.name,
+        mimetype: attachmentStaff.type,
+      };
+    }
+    try {
+      const payload = JSON.stringify({
+        date: new Date().toISOString().slice(0, 10),
+        to: formStaff.to, // already an array
+        subject: formStaff.subject,
+        others: formStaff.toOthers,
+        department: formStaff.department,
+        details: formStaff.details,
+        submittedBy: String(email),
+        attachment: attachment,
+      });
+      await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      navigate('/mysubmission');
+    } catch (error) {
+      alert('Submission failed. Please try again.');
+      console.error(error);
+    }
   };
 
   // Print as a letter, not as a form
@@ -200,7 +256,7 @@ function NewSubmission() {
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
     // Add attachment on second page if present and is image or PDF
-    const attachment = userRole === 'student' ? attachmentStudent : attachmentStaff;
+    const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
     if (attachment) {
       pdf.addPage();
       if (attachment.type.startsWith('image/')) {
@@ -256,15 +312,29 @@ function NewSubmission() {
   const checkedIcon = <CheckBox fontSize="small" />;
 
   const handleAttachmentStudent = (e) => {
-    setAttachmentStudent(e.target.files[0] || null);
+    const file = e.target.files[0] || null;
+    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
+      alert('File size exceeds 10 MB limit. Please choose a smaller file.');
+      e.target.value = '';
+      setAttachmentStudent(null);
+      return;
+    }
+    setAttachmentStudent(file);
   };
   const handleAttachmentStaff = (e) => {
-    setAttachmentStaff(e.target.files[0] || null);
+    const file = e.target.files[0] || null;
+    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
+      alert('File size exceeds 10 MB limit. Please choose a smaller file.');
+      e.target.value = '';
+      setAttachmentStaff(null);
+      return;
+    }
+    setAttachmentStaff(file);
   };
 
   const studentForm = (
     <form className="submission-card" onSubmit={handleSubmitStudent} ref={formRef}>
-      <h2 className="form-title">SUBMISSION</h2>
+      <h2 className="form-title">SUBMISSION Student </h2>
       <div className="form-meta-row">
         <div>
           <label>No:</label>
@@ -305,22 +375,13 @@ function NewSubmission() {
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
         <div className="checkboxes" style={{ width: '100%' }}>
-          <Autocomplete
-            options={TO_OPTIONS_STUDENT}
-            getOptionLabel={(option) => option.label}
-            value={TO_OPTIONS_STUDENT.find(opt => formStudent.to.includes(opt.value)) || null}
-            onChange={handleStudentToChange}
-            renderOption={(props, option) => (
-              <li {...props}>
-                {option.label}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField {...params} variant="outlined" label="To" placeholder="Select recipient" />
-            )}
-            isOptionEqualToValue={(option, value) => option.value === value.value}
-            style={{ width: '100%' }}
+          <input
+            type="text"
+            value="Faculty Advisor"
+            disabled
+            className="long-input"
           />
+          <input type="hidden" name="to" value="faculty" />
         </div>
       </div>
       <div className="form-row">
@@ -522,10 +583,16 @@ function NewSubmission() {
     </div>
   );
 
+function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView, showPrintView }) {
+  if (showPrintView) return printLetterView;
+  if (userRole === 'Student') return studentForm;
+  return staffForm;
+}
+
   return (
     <div className="submission-outer">
       <h1 className="submission-main-title">Submission and Approval</h1>
-      {showPrintView ? printLetterView : (userRole === 'student' ? studentForm : staffForm)}
+      {showPrintView ? printLetterView : (userRole === 'Student' ? studentForm : staffForm)}
     </div>
   );
 }
