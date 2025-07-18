@@ -2,25 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
-import ReceivedForms from './ReceivedForms';
+import { jwtDecode } from "jwt-decode";
 
-function getUserRole() {
-  return localStorage.getItem('userRole') || 'staff';
-}
 
-function Dashboard() {
-  const navigate = useNavigate();
-  const [userRole, setUserRole] = useState(getUserRole());
-  console.log(userRole);
 
-  useEffect(() => {
-    setUserRole(getUserRole());
-  }, []);
-
-  // TODO: Replace with real submissions from backend/API
-  const submissions = [];
-
-  const renderStudentDashboard = () => {
+function RoleDashboard({ userRole, submissions, navigate }) {
+  if (userRole === 'student' || userRole === 'Student') {
     const studentSubmissions = submissions.filter(s => s.owner === 'student');
     return (
       <div className="dashboard-content">
@@ -65,7 +52,7 @@ function Dashboard() {
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
-                      <span className={`status ${submission.status.toLowerCase()}`}>
+                      <span className={`status ${submission.status?.toLowerCase?.() || ''}`}>
                         {submission.status}
                       </span>
                     </td>
@@ -87,33 +74,21 @@ function Dashboard() {
         </div>
       </div>
     );
-  };
-
-  const renderStaffDashboard = () => {
+  } else {
     const staffSubmissions = submissions.filter(s => s.owner === 'staff');
-    const staffSubmissionsPreview = staffSubmissions.slice(0, 5);
     return (
       <div className="dashboard-content">
-        <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="dashboard-header">
           <h2>All Submissions <span className="role-badge staff">Staff</span></h2>
-          <div>
-            <button 
-              className="new-submission-btn"
-              onClick={() => navigate('/submission/new')}
-            >
-              New Submission
-            </button>
-            <button
-              className="view-all-btn"
-              style={{ marginLeft: 12, background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 500 }}
-              onClick={() => navigate('/mysubmission')}
-            >
-              View All
-            </button>
-          </div>
+          <button 
+            className="new-submission-btn"
+            onClick={() => navigate('/submission/new')}
+          >
+            New Submission
+          </button>
         </div>
         <div className="submissions-table">
-          {staffSubmissionsPreview.length === 0 ? (
+          {staffSubmissions.length === 0 ? (
             <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No submissions found.</div>
           ) : (
             <table>
@@ -129,13 +104,13 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {staffSubmissionsPreview.map(submission => (
+                {staffSubmissions.map(submission => (
                   <tr key={submission.id}>
                     <td>#{submission.id}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
-                      <span className={`status ${submission.status.toLowerCase()}`}>
+                      <span className={`status ${submission.status?.toLowerCase?.() || ''}`}>
                         {submission.status}
                       </span>
                     </td>
@@ -155,17 +130,33 @@ function Dashboard() {
             </table>
           )}
         </div>
-        {/* Received Forms Section */}
-        <div style={{ marginTop: '2.5rem' }}>
-          <ReceivedForms previewMode={true} />
-        </div>
       </div>
     );
-  };
+  }
+}
 
+function Dashboard() {
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState();
+  useEffect(() => {
+      var token = jwtDecode(localStorage.getItem('token'));
+      console.log(token)
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      try {
+        setUserRole(token.role)
+      } catch (err) {
+        console.error("Invalid token");
+        navigate('/login');
+      }
+    }, []);
+  // TODO: Replace with real submissions from backend/API
+  const submissions = [];
   return (
     <div className="dashboard-page">
-      {userRole === 'student' ? renderStudentDashboard() : renderStaffDashboard()}
+      <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
     </div>
   );
 }

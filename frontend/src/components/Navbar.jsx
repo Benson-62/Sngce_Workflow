@@ -55,9 +55,9 @@ function Navbar() {
         <Link to="/submission/new">New Submission</Link>
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
-        ) : (
-          <button onClick={() => navigate('/login')} className="logout-btn">Login</button>
-        )}
+        ) : null 
+          // (<button onClick={() => navigate('/login')} className="logout-btn">Login</button>)
+        }
       </div>
     </nav>
   );
