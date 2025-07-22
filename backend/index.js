@@ -35,6 +35,70 @@ app.get('/getFacultyAdvisor',async(req,res)=>{
     res.send(error)
   }
 })
+// Filtered Faculty Forms
+app.get('/getFForms', async(req,res)=>{
+var {role, department} = req.body;
+console.log(role)
+console.log(department)
+  try{
+    if(role != 'Principal' || role != 'Manager'){
+      const formVar = await fFormModel.find({to :role, department : department});
+      console.log("1")
+      console.log(formVar)
+      res.send(formVar)
+    }else{
+      const formVar = await fFormModel.find({to : role});
+      console.log(formVar)
+      res.send(formVar)
+    }
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Filtered Student Forms
+app.get('/getSForms', async(req,res)=>{
+var {role, department} = req.body;
+console.log(role)
+console.log(department)
+  try{
+    if(role != 'Principal' || role != 'Manager'){
+      const formVar = await sFormModel.find({to :role, department : department});
+      console.log("1")
+      console.log(formVar)
+      res.send(formVar)
+    }else{
+      const formVar = await sFormModel.find({to : role});
+      console.log(formVar)
+      res.send(formVar)
+    }
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Get all Faculty Forms
+app.get('/getAllFForms', async(req,res)=>{
+  try{
+    const formVar = await fFormModel.find();
+    console.log(formVar)
+    res.send(formVar)
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Get all Student Forms
+app.get('/getAllSForms', async(req,res)=>{
+  try{
+    const formVar = await sFormModel.find();
+    console.log(formVar)
+    res.send(formVar)
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
 
 app.post('/createFacultyAdvisor', async (req,res)=> {
   const { year, department, facultyNames} = req.body;
@@ -47,6 +111,7 @@ app.post('/createFacultyAdvisor', async (req,res)=> {
     res.send(error);
   }
 });
+
 
 app.post('/facultyFormSubmission', async (req, res) => {
   const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;

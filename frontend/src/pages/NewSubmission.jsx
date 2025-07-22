@@ -14,7 +14,7 @@ import { jwtDecode } from 'jwt-decode';
 const initialStateStudent = {
   subject: '',
   department: '',
-  to: [],
+  to: ['FacultyAdvisor'],
   toOthers: '',
   purpose: [],
   purposeOthers: '',
@@ -35,18 +35,18 @@ const initialStateStaff = {
 };
 
 const TO_OPTIONS_STAFF = [
-  { label: 'Head of Department (HoD)', value: 'hod' },
-  { label: 'Principal', value: 'principal' },
-  { label: 'Manager', value: 'manager' },
-  { label: 'Committee Convenor', value: 'committee' },
-  { label: 'Secretars', value: 'secretary' },
+  { label: 'Head of Department (HoD)', value: 'HOD' },
+  { label: 'Principal', value: 'Principal' },
+  { label: 'Manager', value: 'Manager' },
+  { label: 'Committee Convenor', value: 'Committee' },
+  { label: 'Secretars', value: 'Secretars' },
 ];
 
 const TO_OPTIONS_STUDENT = [
-  { label: 'Faculty Advisor', value: 'faculty' },
-  { label: 'Head of Department (HoD)', value: 'hod' },
-  { label: 'Principal', value: 'principal' },
-  { label: 'Manager', value: 'manager' },
+  { label: 'Faculty Advisor', value: 'FacultyAdvisor' },
+  { label: 'Head of Department (HoD)', value: 'HOD' },
+  { label: 'Principal', value: 'Principal' },
+  { label: 'Manager', value: 'Manager' },
 ];
 
 const PURPOSE_OPTIONS = [
@@ -393,13 +393,13 @@ function NewSubmission() {
         <select
           name="department"
           value={formStudent.department}
-          onChange={handleChangeStudent}
+          onChange={e => setFormStudent({ ...formStudent, department: e.target.value })}
           className="long-input"
           required
         >
           <option value="" disabled>Select department</option>
           {DEPARTMENT_OPTIONS.map((dept) => (
-            <option key={dept.name} value={dept.name}>
+            <option key={dept.short} value={dept.short}>
               {dept.name} ({dept.short})
             </option>
           ))}
@@ -493,13 +493,13 @@ function NewSubmission() {
         <select
           name="department"
           value={formStaff.department}
-          onChange={handleChangeStaff}
+          onChange={e => setFormStaff({ ...formStaff, department: e.target.value })}
           className="long-input"
           required
         >
           <option value="" disabled>Select department</option>
           {DEPARTMENT_OPTIONS.map((dept) => (
-            <option key={dept.name} value={dept.name}>
+            <option key={dept.short} value={dept.short}>
               {dept.name} ({dept.short})
             </option>
           ))}
@@ -526,6 +526,12 @@ function NewSubmission() {
   const getDeptShort = (name) => {
     const found = DEPARTMENT_OPTIONS.find((d) => d.name === name);
     return found ? found.short : '';
+  };
+
+  // Helper to get department long name from short
+  const getDeptLong = (short) => {
+    const found = DEPARTMENT_OPTIONS.find((d) => d.short === short);
+    return found ? `${found.name} (${found.short})` : short;
   };
 
   // Helper to get recipient labels
@@ -578,7 +584,7 @@ function NewSubmission() {
         )}
       </div>
       <div style={{ marginTop: 48 }}>
-        <div>Department: {userRole === 'student' ? formStudent.department : formStaff.department} ({getDeptShort(userRole === 'student' ? formStudent.department : formStaff.department)})</div>
+        <div>Department: {getDeptLong(userRole === 'student' ? formStudent.department : formStaff.department)}</div>
       </div>
     </div>
   );

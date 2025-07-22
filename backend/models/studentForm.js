@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const AutoIncrement = require('mongoose-sequence')(mongoose);
+const Counter = require('./Counter');
 
 const studentFormSchema = new mongoose.Schema({
     formNo: {
@@ -44,7 +45,25 @@ const studentFormSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-studentFormSchema.plugin(AutoIncrement, { inc_field: 'studentFormNo' });
+studentFormSchema.pre("save", async function (next) {
+  if (this.isNew) {
+    try {
+      const counter = await Counter.findByIdAndUpdate(
+        { _id: "studentFormId" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.formNo = counter.seq;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  } else {
+    next();
+  }
+});
+
+// studentFormSchema.plugin(AutoIncrement, { inc_field: 'studentFormNo' });
 
 const studentForm = mongoose.model("StudentForm", studentFormSchema);
 module.exports = studentForm;

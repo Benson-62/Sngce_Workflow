@@ -10,7 +10,7 @@ const userSchema = mongoose.Schema({
   },
   dept :{
     type: String,
-    enum : ["cs", "ec","me", "eee", "ce", "nasb"],
+    enum : ["CSE", "NASB","ECE", "EEE", "ME", "CE", "AI", "CS", "MCA"],
     require: true
   },
   email: {
