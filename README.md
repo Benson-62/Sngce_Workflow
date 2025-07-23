@@ -23,7 +23,7 @@ A full-stack application for managing submission and approval workflows with use
 
 ---
 
-## Features
+## Features ( After completion)
 - Multi-role workflow (Originator, HoD, Principal, etc.)
 - Submission forms with attachments
 - Approval, return, and forward actions
@@ -34,15 +34,12 @@ A full-stack application for managing submission and approval workflows with use
 ## Further futures to impliment
 
 
-
+- recieved 
 - options for both save & submit + 5 min time frame before send
--  sent and Arrive.
 - Remarks - for each 
-- cant access anything without login 
--  
-- admin page to enter new users.
+- Recieved & Submission backend
+- admin page faclitates to enter new users.
 - urgency 1 , 2 , 3 messages.
-- subject being shown in messages
 -  approval  & reject 
 - multiple hod email selector ,also for avarachan sir 
 - subject selection?
@@ -58,7 +55,10 @@ data base - view
 
 completed
 - Authentication: JWT (for roles like Originator, HoD, Principal, etc.) 
-
+- received and Submisson frontend
+- cant access anything without login 
+- subject being shown in messages
+- admin page
 
 ---
 
