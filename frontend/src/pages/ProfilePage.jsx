@@ -17,7 +17,7 @@ const ProfilePage = () => {
  
   return (
     <div className="profile-container">
-      <h2>Profile Page</h2>
+      <h2>Profile</h2>
       <div className="profile-card">
         <div className="profile-avatar">
           {email ? email.charAt(0).toUpperCase() : <span>👤</span>}
