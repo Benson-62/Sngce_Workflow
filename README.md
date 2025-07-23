@@ -43,7 +43,6 @@ A full-stack application for managing submission and approval workflows with use
 -  approval  & reject 
 - multiple hod email selector ,also for avarachan sir 
 - subject selection?
-- File Uploads: For attaching documents
 - sending to multiple hods or faculty from top.
 - Email Notifications: For updates at each step ?
 - Approve (with options: return to originator, forward to others, approve for payment) ?
@@ -59,6 +58,7 @@ completed
 - cant access anything without login 
 - subject being shown in messages
 - admin page
+- File Uploads: For attaching documents
 
 ---
 
