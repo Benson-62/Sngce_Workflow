@@ -201,7 +201,7 @@ function NewSubmission() {
           'Content-Type': 'application/json',
         },
       });
-      navigate('/mysubmission');
+      navigate('/dashboard');
     } catch (error) {
       alert('Submission failed. Please try again.');
       console.error(error);
@@ -236,7 +236,7 @@ function NewSubmission() {
           'Content-Type': 'application/json',
         },
       });
-      navigate('/mysubmission');
+      navigate('/dashboard');
     } catch (error) {
       alert('Submission failed. Please try again.');
       console.error(error);

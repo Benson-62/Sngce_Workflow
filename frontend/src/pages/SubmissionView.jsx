@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const statusLabels = {
@@ -19,6 +19,7 @@ const statusColors = {
 
 export default function SubmissionView() {
   const { id } = useParams();
+  const location = useLocation();
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,6 +52,9 @@ export default function SubmissionView() {
   const status = submission.status || 'awaiting';
   const statusLabel = statusLabels[status] || status;
   const statusColor = statusColors[status] || '#888';
+
+  // Determine if this is a received form view (e.g., via location.state)
+  const isReceivedView = location.state?.fromReceived || false;
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40 }}>
@@ -86,6 +90,13 @@ export default function SubmissionView() {
           <div><b>Department:</b> {submission.department}</div>
           <div><b>Submitted By:</b> {submission.submittedBy}</div>
         </div>
+        {/* Show remarks only in received form session */}
+        {isReceivedView && submission.remarks && (
+          <div style={{ marginTop: 32, padding: 16, background: '#f8f9fa', borderRadius: 8, border: '1px solid #eee' }}>
+            <b>Remarks:</b>
+            <div style={{ marginTop: 8 }}>{submission.remarks}</div>
+          </div>
+        )}
       </div>
     </div>
   );

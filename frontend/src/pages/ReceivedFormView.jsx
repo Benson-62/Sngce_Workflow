@@ -1,116 +1,161 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-
-// Mock data for demonstration
-const mockForms = [
-  {
-    id: 1,
-    title: 'Leave Application',
-    sender: 'John Doe',
-    date: '2024-06-01',
-    status: 'new',
-    details: 'Requesting leave for 3 days due to personal reasons.',
-    remarks: '',
-    signature: '',
-  },
-  {
-    id: 2,
-    title: 'Conference Request',
-    sender: 'Jane Smith',
-    date: '2024-05-28',
-    status: 'opened',
-    details: 'Requesting permission to attend a conference.',
-    remarks: 'Please attach conference details.',
-    signature: 'Staff A',
-  },
-];
+import axios from 'axios';
 
 const statusLabels = {
-  new: 'New',
-  opened: 'Opened',
-  approved: 'Approved',
-  rejected: 'Rejected',
+  awaiting: 'Awaiting',
   forwarded: 'Forwarded',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  approved: 'Approved',
 };
-
 const statusColors = {
-  new: 'blue',
-  opened: 'grey',
-  approved: 'green',
-  rejected: 'red',
-  forwarded: 'orange',
+  awaiting: '#fbbf24', // yellow
+  forwarded: '#3b82f6', // blue
+  accepted: '#22c55e', // green
+  rejected: '#ef4444', // red
+  approved: '#22c55e', // green
 };
+const FORWARD_OPTIONS = [
+  { label: 'Head of Department (HoD)', value: 'HOD' },
+  { label: 'Principal', value: 'Principal' },
+  { label: 'Manager', value: 'Manager' },
+  { label: 'Committee Convenor', value: 'Committee' },
+  { label: 'Secretary', value: 'Secretary' },
+];
 
 export default function ReceivedFormView() {
   const { id } = useParams();
-  const userRole = localStorage.getItem('userRole') || 'staff';
-  const form = mockForms.find(f => f.id === Number(id)) || mockForms[0];
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [remarks, setRemarks] = useState('');
+  const [forwardTo, setForwardTo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const [status, setStatus] = useState(form.status);
-  const [remarks, setRemarks] = useState(form.remarks);
-  const [signature, setSignature] = useState(form.signature);
+  useEffect(() => {
+    // Try both student and faculty endpoints
+    const fetchForm = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+        setForm(res.data);
+        setRemarks(res.data.remarks || '');
+      } catch (err1) {
+        try {
+          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+          setForm(res.data);
+          setRemarks(res.data.remarks || '');
+        } catch (err2) {
+          setError('Submission not found or failed to load.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchForm();
+  }, [id]);
 
-  const handleAction = (newStatus) => {
-    setStatus(newStatus);
+  const handleSave = async () => {
+    if (!form) return;
+    setSaving(true);
+    setError('');
+    try {
+      // Forwarding: add to 'to' array if selected
+      let newTo = Array.isArray(form.to) ? [...form.to] : [form.to];
+      if (forwardTo && !newTo.includes(forwardTo)) {
+        newTo.push(forwardTo);
+      }
+      const formType = form.owner === 'student' ? 'student' : 'faculty';
+      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId: form._id || form.id,
+        formType,
+        remarks,
+        to: newTo,
+      });
+      setForm(f => ({ ...f, remarks, to: newTo }));
+    } catch (err) {
+      setError('Failed to update.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
+  if (error) return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;
+  if (!form) return null;
+
+  const status = form.status || 'awaiting';
+  const statusLabel = statusLabels[status] || status;
+  const statusColor = statusColors[status] || '#888';
 
   return (
-    <div style={{ maxWidth: 600, margin: '2rem auto', background: '#fff', padding: '2rem', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-      <h2>{form.title}</h2>
-      <div style={{ marginBottom: 12 }}>
-        <span><b>Sender:</b> {form.sender}</span><br />
-        <span><b>Date:</b> {form.date}</span><br />
-        <span>
-          <b>Status:</b> <span style={{ background: statusColors[status], color: '#fff', borderRadius: 6, padding: '2px 10px', fontSize: '0.95em' }}>{statusLabels[status]}</span>
-        </span>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40 }}>
+      {/* Status Bar */}
+      <div style={{ width: 16, minHeight: 400, background: statusColor, borderRadius: 8, marginRight: 32, position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 20, left: 24, color: statusColor, fontWeight: 'bold', writingMode: 'vertical-rl', textOrientation: 'mixed', fontSize: 18, letterSpacing: 2 }}>
+          {statusLabel}
+        </div>
       </div>
-      <div style={{ marginBottom: 18 }}>
-        <b>Details:</b>
-        <div style={{ background: '#f7f7f7', padding: 12, borderRadius: 6, marginTop: 4 }}>{form.details}</div>
-      </div>
-      <div style={{ marginBottom: 18 }}>
-        <b>Remarks:</b>
-        {userRole === 'staff' ? (
+      {/* Letter Format + New Features */}
+      <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px #eee', padding: 40, minWidth: 400, maxWidth: 700, width: '100%' }}>
+        <div style={{ textAlign: 'right', marginBottom: 16 }}>
+          <div><b>Date:</b> {form.createdAt ? new Date(form.createdAt).toLocaleString() : ''}</div>
+          <div><b>No:</b> {form.formNo || form._id}</div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div>To,</div>
+          <div style={{ marginLeft: 32 }}>{Array.isArray(form.to) ? form.to.join(', ') : form.to}</div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div><b>Subject:</b> {form.subject}</div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div>Respected Sir/Madam,</div>
+          <div style={{ marginTop: 16, marginLeft: 32 }}>{form.details}</div>
+        </div>
+        {form.attachment && form.attachment.filename && (
+          <div style={{ marginBottom: 16, marginLeft: 32 }}>
+            <b>Attachment:</b> {form.attachment.filename}
+          </div>
+        )}
+        <div style={{ marginTop: 32 }}>
+          <div><b>Department:</b> {form.department}</div>
+          <div><b>Submitted By:</b> {form.submittedBy}</div>
+        </div>
+        {/* New Features: Remarks and Forward To */}
+        <div style={{ marginTop: 32, padding: 16, background: '#f8f9fa', borderRadius: 8, border: '1px solid #eee' }}>
+          <b>Remarks:</b>
           <textarea
             value={remarks}
             onChange={e => setRemarks(e.target.value)}
             rows={3}
-            style={{ width: '100%', marginTop: 4, borderRadius: 4, border: '1px solid #ccc', padding: 8 }}
+            style={{ width: '100%', marginTop: 8, borderRadius: 4, border: '1px solid #ccc', padding: 8 }}
           />
-        ) : (
-          <div style={{ background: '#f7f7f7', padding: 8, borderRadius: 4, marginTop: 4, minHeight: 40 }}>
-            {remarks || <span style={{ color: '#aaa' }}>No remarks</span>}
+          <div style={{ marginTop: 18 }}>
+            <b>Forward To:</b>
+            <select
+              value={forwardTo}
+              onChange={e => setForwardTo(e.target.value)}
+              style={{ width: '100%', marginTop: 8, borderRadius: 4, border: '1px solid #ccc', padding: 8 }}
+            >
+              <option value="">Select person to forward</option>
+              {FORWARD_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
-      <div style={{ marginBottom: 18 }}>
-        <b>Staff Signature:</b>
-        {userRole === 'staff' ? (
-          <input
-            type="text"
-            value={signature}
-            onChange={e => setSignature(e.target.value)}
-            placeholder="Sign here"
-            style={{ width: '100%', marginTop: 4, borderRadius: 4, border: '1px solid #ccc', padding: 8 }}
-          />
-        ) : (
-          <div style={{ background: '#f7f7f7', padding: 8, borderRadius: 4, marginTop: 4, minHeight: 32 }}>
-            {signature || <span style={{ color: '#aaa' }}>No signature</span>}
-          </div>
-        )}
-      </div>
-      {userRole === 'staff' && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
-          <button onClick={() => handleAction('approved')} style={{ background: '#38a169', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Approve</button>
-          <button onClick={() => handleAction('rejected')} style={{ background: '#e53e3e', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Reject</button>
-          <button onClick={() => handleAction('forwarded')} style={{ background: '#ed8936', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Forward</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', marginTop: 18 }}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {error && <span style={{ color: 'red', marginLeft: 12 }}>{error}</span>}
         </div>
-      )}
-      <button onClick={handlePrint} style={{ background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}>Print PDF</button>
+      </div>
     </div>
   );
 } 

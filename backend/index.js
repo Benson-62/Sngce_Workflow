@@ -231,6 +231,93 @@ app.get('/getAllUsers', async (req, res) => {
   }
 });
 
+// Unified endpoint for all roles
+app.get('/getFormsForUser', async (req, res) => {
+  const { email, role } = req.query;
+  try {
+    if (role === 'admin' || role === 'Admin') {
+      // Admin: return all forms
+      const [facultyForms, studentForms] = await Promise.all([
+        fFormModel.find(),
+        sFormModel.find()
+      ]);
+      res.send([
+        ...facultyForms.map(f => ({ ...f.toObject(), owner: 'staff' })),
+        ...studentForms.map(s => ({ ...s.toObject(), owner: 'student' }))
+      ]);
+    } else if (role === 'student' || role === 'Student') {
+      // Student: only their forms
+      const forms = await sFormModel.find({ submittedBy: email });
+      res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
+    } else {
+      // Staff: only their forms
+      const forms = await fFormModel.find({ submittedBy: email });
+      res.send(forms.map(f => ({ ...f.toObject(), owner: 'staff' })));
+    }
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Endpoint to get received forms for a user
+app.get('/getReceivedFormsForUser', async (req, res) => {
+  const { email, role } = req.query;
+  try {
+    // For faculty forms: received if 'to' includes the user's email or role
+    const facultyReceived = await fFormModel.find({ to: { $in: [email, role] } });
+
+    // For student forms: received if 'to' includes the user's email or role
+    // If sent to HoD or higher, must also be routed through Faculty Advisor
+    const studentForms = await sFormModel.find();
+    const studentReceived = studentForms.filter(form => {
+      // If the form is sent to HoD or Principal or Manager, it must also include Faculty Advisor
+      const toArray = Array.isArray(form.to) ? form.to : [form.to];
+      const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'Manager'].includes(r));
+      const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
+      // If it's to HoD or higher, must also include FacultyAdvisor
+      if (isToHodOrHigher && !includesFacultyAdvisor) return false;
+      // Received if the user is in the 'to' field (by email or role)
+      return toArray.includes(email) || toArray.includes(role);
+    });
+
+    res.send([
+      ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
+      ...studentReceived.map(s => ({ ...s.toObject(), owner: 'student' }))
+    ]);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Endpoint to update remarks and status for a form
+app.put('/updateFormRemarksStatus', async (req, res) => {
+  const { formId, formType, remarks, status, to } = req.body;
+  console.log(req.body);
+  try {
+    let model;
+    if (formType === 'student') {
+      model = sFormModel;
+    } else if (formType === 'faculty') {
+      model = fFormModel;
+    } else {
+      return res.status(400).send('Invalid form type');
+    }
+    const updateFields = {};
+    if (remarks !== undefined) updateFields.remarks = remarks;
+    if (status !== undefined) updateFields.status = status;
+    if (to !== undefined) updateFields.to = to;
+    const updated = await model.findByIdAndUpdate(
+      formId,
+      updateFields,
+      { new: true }
+    );
+    if (!updated) return res.status(404).send('Form not found');
+    res.send(updated);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Port is up and running at ${PORT}`);
 });

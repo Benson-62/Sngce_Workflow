@@ -1,71 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import './ReceivedForms.css';
 
-const mockForms = [
-  {
-    id: 1,
-    title: 'Leave Application',
-    sender: 'John Doe',
-    date: '2024-06-01',
-    status: 'new',
-  },
-  {
-    id: 2,
-    title: 'Conference Request',
-    sender: 'Jane Smith',
-    date: '2024-05-28',
-    status: 'opened',
-  },
-  {
-    id: 3,
-    title: 'Research Grant',
-    sender: 'Alice Brown',
-    date: '2024-05-20',
-    status: 'approved',
-  },
-  {
-    id: 4,
-    title: 'Travel Reimbursement',
-    sender: 'Bob Lee',
-    date: '2024-05-18',
-    status: 'rejected',
-  },
-  {
-    id: 5,
-    title: 'Equipment Purchase',
-    sender: 'Carol White',
-    date: '2024-05-15',
-    status: 'forwarded',
-  },
-  {
-    id: 6,
-    title: 'Extra Form',
-    sender: 'Extra Sender',
-    date: '2024-05-10',
-    status: 'opened',
-  },
-];
-
-const statusColors = {
-  new: '#3182ce', // blue
-  opened: '#a0aec0', // grey
-  approved: '#38a169', // green
-  rejected: '#e53e3e', // red
-  forwarded: '#ed8936', // orange
-};
-
-const statusLabels = {
-  new: 'New',
-  opened: 'Opened',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  forwarded: 'Forwarded',
-};
-
 export default function ReceivedForms({ previewMode }) {
-  const [forms] = useState(mockForms);
+  const [forms, setForms] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = jwtDecode(localStorage.getItem('token'));
+    const email = token.email;
+    const role = token.role;
+    axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`)
+      .then(res => setForms(res.data || []))
+      .catch(() => setForms([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
   const formsToShow = previewMode ? forms.slice(0, 5) : forms;
 
   return (
@@ -94,18 +49,16 @@ export default function ReceivedForms({ previewMode }) {
         <tbody>
           {formsToShow.map(form => (
             <tr
-              key={form.id}
+              key={form._id || form.id}
               className="received-form-row"
-              style={{ backgroundColor: statusColors[form.status], cursor: 'pointer', color: '#fff' }}
-              onClick={() => navigate(`/received-forms/${form.id}`)}
+              style={{ backgroundColor: '#fff', cursor: 'pointer', color: '#222' }}
+              onClick={() => navigate(`/received-forms/${form._id || form.id}`)}
             >
-              <td>{form.title}</td>
-              <td>{form.sender}</td>
-              <td>{form.date}</td>
+              <td>{form.subject || form.title}</td>
+              <td>{form.submittedBy || form.sender}</td>
+              <td>{form.createdAt ? new Date(form.createdAt).toLocaleString() : (form.date || '')}</td>
               <td>
-                <span className={`status-tag status-tag-${form.status}`}>
-                  {statusLabels[form.status]}
-                </span>
+                <span className={`status-tag status-tag-${form.status}`}>{form.status}</span>
               </td>
             </tr>
           ))}
