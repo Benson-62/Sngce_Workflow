@@ -99,6 +99,28 @@ app.get('/getAllSForms', async(req,res)=>{
     res.send(error)
   }
 })
+// Get Student Forms by user
+app.get('/getSFormsByUser', async (req, res) => {
+  const { email } = req.query;
+  try {
+    const forms = await sFormModel.find({ submittedBy: email });
+    res.send(forms);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send(error);
+  }
+});
+// Get Faculty Forms by user
+app.get('/getFFormsByUser', async (req, res) => {
+  const { email } = req.query;
+  try {
+    const forms = await fFormModel.find({ submittedBy: email });
+    res.send(forms);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send(error);
+  }
+});
 
 app.post('/createFacultyAdvisor', async (req,res)=> {
   const { year, department, facultyNames} = req.body;

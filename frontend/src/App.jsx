@@ -9,6 +9,7 @@ import NewSubmission from './pages/NewSubmission';
 import AdminPanel from './AdminPanel';
 import ReceivedForms from './pages/ReceivedForms';
 import ReceivedFormView from './pages/ReceivedFormView';
+import SubmissionView from './pages/SubmissionView';
 import './App.css';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submission/new" element={<NewSubmission />} />
+          <Route path="/submission/:id" element={<SubmissionView />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/received-forms" element={<ReceivedForms />} />
           <Route path="/received-forms/:id" element={<ReceivedFormView />} />

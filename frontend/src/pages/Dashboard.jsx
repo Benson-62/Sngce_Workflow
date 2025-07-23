@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import { jwtDecode } from "jwt-decode";
-
+import axios from 'axios';
 
 
 function RoleDashboard({ userRole, submissions, navigate }) {
@@ -14,19 +14,12 @@ function RoleDashboard({ userRole, submissions, navigate }) {
         <div className="dashboard-header">
           <h2>My Submissions <span className="role-badge student">Student</span></h2>
           <div style={{ display: 'flex', gap: 12 }}>
-            <button 
+            {/* <button 
               className="new-submission-btn"
               onClick={() => navigate('/submission/new')}
             >
               New Submission
-            </button>
-            <button
-              className="new-submission-btn"
-              style={{ background: '#fff', color: '#667eea', border: '1px solid #667eea' }}
-              onClick={() => navigate('/mysubmission')}
-            >
-              My Submission
-            </button>
+            </button> */}
           </div>
         </div>
         <div className="submissions-table">
@@ -46,9 +39,9 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                 </tr>
               </thead>
               <tbody>
-                {studentSubmissions.map(submission => (
-                  <tr key={submission.id}>
-                    <td>#{submission.id}</td>
+                {studentSubmissions.map((submission, idx) => (
+                  <tr key={submission._id || submission.id || idx}>
+                    <td>#{submission.formNo || submission.id || submission._id}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -56,12 +49,12 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         {submission.status}
                       </span>
                     </td>
-                    <td>{submission.date}</td>
+                    <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
                       <button 
                         className="view-btn"
-                        onClick={() => navigate(`/submission/${submission.id}`)}
+                        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
                       >
                         View
                       </button>
@@ -104,9 +97,9 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                 </tr>
               </thead>
               <tbody>
-                {staffSubmissions.map(submission => (
-                  <tr key={submission.id}>
-                    <td>#{submission.id}</td>
+                {staffSubmissions.map((submission, idx) => (
+                  <tr key={submission._id || submission.id || idx}>
+                    <td>#{submission.formNo || submission.id || submission._id}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -114,12 +107,12 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         {submission.status}
                       </span>
                     </td>
-                    <td>{submission.date}</td>
+                    <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
                       <button 
                         className="view-btn"
-                        onClick={() => navigate(`/submission/${submission.id}`)}
+                        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
                       >
                         View
                       </button>
@@ -138,22 +131,49 @@ function RoleDashboard({ userRole, submissions, navigate }) {
 function Dashboard() {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState();
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   useEffect(() => {
       var token = jwtDecode(localStorage.getItem('token'));
-      console.log(token)
       if (!token) {
         navigate('/login');
         return;
       }
       try {
-        setUserRole(token.role)
+        setUserRole(token.role);
+        const email = token.email;
+        const role = token.role;
+        const fetchSubmissions = async () => {
+          try {
+            let url = '';
+            if (role === 'Student' || role === 'student') {
+              url = `http://localhost:3096/getSFormsByUser?email=${encodeURIComponent(email)}`;
+            } else {
+              url = `http://localhost:3096/getFFormsByUser?email=${encodeURIComponent(email)}`;
+            }
+            const res = await axios.get(url);
+            // Add owner field for filtering in RoleDashboard
+            const withOwner = (res.data || []).map(s => ({ ...s, owner: (role === 'Student' || role === 'student') ? 'student' : 'staff' }));
+            setSubmissions(withOwner);
+          } catch (err) {
+            setError('Failed to fetch submissions');
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchSubmissions();
       } catch (err) {
         console.error("Invalid token");
         navigate('/login');
       }
-    }, []);
-  // TODO: Replace with real submissions from backend/API
-  const submissions = [];
+    }, [navigate]);
+  if (loading) {
+    return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
+  }
+  if (error) {
+    return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div></div>;
+  }
   return (
     <div className="dashboard-page">
       <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />

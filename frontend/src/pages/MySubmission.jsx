@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+                  import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 function MySubmission() {
   const navigate = useNavigate();
-  const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   // Load received messages from localStorage
   const [receivedMessages, setReceivedMessages] = useState(
     JSON.parse(localStorage.getItem('receivedMessages') || '[]')
@@ -12,6 +16,41 @@ function MySubmission() {
   const [remarks, setRemarks] = useState(
     JSON.parse(localStorage.getItem('receivedRemarks') || '{}')
   );
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    let decoded;
+    try {
+      decoded = jwtDecode(token);
+    } catch (err) {
+      setError('Invalid token');
+      setLoading(false);
+      return;
+    }
+    const email = decoded.email;
+    const role = decoded.role;
+    const fetchSubmissions = async () => {
+      try {
+        let url = '';
+        if (role === 'Student' || role === 'student') {
+          url = `http://localhost:3096/getSFormsByUser?email=${encodeURIComponent(email)}`;
+        } else {
+          url = `http://localhost:3096/getFFormsByUser?email=${encodeURIComponent(email)}`;
+        }
+        const res = await axios.get(url);
+        setSubmissions(res.data || []);
+      } catch (err) {
+        setError('Failed to fetch submissions');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubmissions();
+  }, [navigate]);
 
   // Handle input changes for remarks and actions
   const handleInputChange = (id, field, value) => {
@@ -27,6 +66,12 @@ function MySubmission() {
     alert('Saved!');
   };
 
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div>;
+  }
+  if (error) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;
+  }
   if (!submissions.length && !receivedMessages.length) {
     return <div style={{ padding: 40, textAlign: 'center' }}>No submissions or received messages found.</div>;
   }
@@ -46,10 +91,10 @@ function MySubmission() {
           </thead>
           <tbody>
             {submissions.map(sub => (
-              <tr key={sub.id}>
+              <tr key={sub._id}>
                 <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.subject}</td>
                 <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.department}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.date}</td>
+                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.createdAt ? new Date(sub.createdAt).toLocaleString() : (sub.date ? new Date(sub.date).toLocaleDateString() : '')}</td>
                 <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
                   <button onClick={() => alert('View/Print not implemented in demo')}>View/Print</button>
                 </td>

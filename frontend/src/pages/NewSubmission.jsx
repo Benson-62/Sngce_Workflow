@@ -100,25 +100,21 @@ function NewSubmission() {
   const [attachmentStudent, setAttachmentStudent] = useState(null);
   const [attachmentStaff, setAttachmentStaff] = useState(null);
   const navigate = useNavigate();
-  var token;
-  var [email, setEmail]= useState('');
+  // Removed email state
 
   useEffect(() => {
-    token = jwtDecode(localStorage.getItem('token'));
-    setEmail(token.email);
-    console.log(email)
+    const token = jwtDecode(localStorage.getItem('token'));
     if (!token) {
-    navigate('/login');
-    return;
-  }
-  try {
-    setUserRole(token.role)
-  } catch (err) {
-    console.error("Invalid token");
-    navigate('/login');
-  }
-    
-  }, []);
+      navigate('/login');
+      return;
+    }
+    try {
+      setUserRole(token.role);
+    } catch (err) {
+      console.error("Invalid token");
+      navigate('/login');
+    }
+  }, [navigate]);
   // File conversion
   const toBase64 = (file) => {
   return new Promise((resolve, reject) => {
@@ -188,6 +184,8 @@ function NewSubmission() {
       };
     }
     try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      const email = token.email;
       const payload = JSON.stringify({
         date: new Date().toISOString().slice(0, 10),
         to: formStudent.to, // already an array
@@ -221,6 +219,8 @@ function NewSubmission() {
       };
     }
     try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      const email = token.email;
       const payload = JSON.stringify({
         date: new Date().toISOString().slice(0, 10),
         to: formStaff.to, // already an array
