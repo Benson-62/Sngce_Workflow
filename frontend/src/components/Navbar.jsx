@@ -1,8 +1,14 @@
+// ===============================
+// File: src/components/Navbar.jsx
+// Description: Top navigation bar for the app. Handles navigation and logout.
+// ===============================
+
 // frontend/src/components/Navbar.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Navbar.css';
 
+// Navbar: Main navigation bar component
 function Navbar() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));

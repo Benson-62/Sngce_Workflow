@@ -1,8 +1,12 @@
-// frontend/src/pages/RegisterPage.jsx
+// ===============================
+// File: src/pages/RegisterPage.jsx
+// Description: User registration form. Handles new user sign-up.
+// ===============================
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './RegisterPage.css';
 
+// RegisterPage: Main registration form component
 function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',

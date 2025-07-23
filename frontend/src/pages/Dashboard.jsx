@@ -1,19 +1,28 @@
-// frontend/src/pages/Dashboard.jsx
+// ===============================
+// File: src/pages/Dashboard.jsx
+// Description: Main dashboard page for students and staff. Shows submissions and received forms.
+// ===============================
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import { jwtDecode } from "jwt-decode";
 
-
-
+// RoleDashboard: Renders dashboard content based on user role (student/staff)
 function RoleDashboard({ userRole, submissions, navigate }) {
   if (userRole === 'student' || userRole === 'Student') {
     const studentSubmissions = submissions.filter(s => s.owner === 'student');
+    const showViewAll = studentSubmissions.length > 5;
+    const displayedSubmissions = showViewAll ? studentSubmissions.slice(0, 5) : studentSubmissions;
     return (
       <div className="dashboard-content">
         <div className="dashboard-header">
           <h2>My Submissions <span className="role-badge student">Student</span></h2>
           <div style={{ display: 'flex', gap: 12 }}>
+            {showViewAll && (
+              <button className="view-all-btn" onClick={() => {/* TODO: handle view all */}}>
+                View All
+              </button>
+            )}
             <button 
               className="new-submission-btn"
               onClick={() => navigate('/submission/new')}
@@ -30,23 +39,27 @@ function RoleDashboard({ userRole, submissions, navigate }) {
           </div>
         </div>
         <div className="submissions-table">
-          {studentSubmissions.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No submissions found.</div>
-          ) : (
-            <table>
-              <thead>
+          <table>
+            <thead>
+              <tr>
+                <th>Submission No</th>
+                <th>Subject</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Current Reviewer</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedSubmissions.length === 0 ? (
                 <tr>
-                  <th>Submission No</th>
-                  <th>Subject</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Current Reviewer</th>
-                  <th>Actions</th>
+                  <td colSpan="7" style={{ textAlign: 'center', color: '#888', padding: '32px' }}>
+                    No submissions found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {studentSubmissions.map(submission => (
+              ) : (
+                displayedSubmissions.map(submission => (
                   <tr key={submission.id}>
                     <td>#{submission.id}</td>
                     <td>{submission.subject}</td>
@@ -67,44 +80,61 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     );
   } else {
     const staffSubmissions = submissions.filter(s => s.owner === 'staff');
+    const showViewAllSub = staffSubmissions.length > 5;
+    const displayedStaffSub = showViewAllSub ? staffSubmissions.slice(0, 5) : staffSubmissions;
+    // Placeholder for received forms (replace with real data as needed)
+    const receivedForms = [];
+    const showViewAllReceived = receivedForms.length > 5;
+    const displayedReceivedForms = showViewAllReceived ? receivedForms.slice(0, 5) : receivedForms;
     return (
       <div className="dashboard-content">
         <div className="dashboard-header">
           <h2>All Submissions <span className="role-badge staff">Staff</span></h2>
-          <button 
-            className="new-submission-btn"
-            onClick={() => navigate('/submission/new')}
-          >
-            New Submission
-          </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {showViewAllSub && (
+              <button className="view-all-btn" onClick={() => {/* TODO: handle view all */}}>
+                View All
+              </button>
+            )}
+            <button 
+              className="new-submission-btn"
+              onClick={() => navigate('/submission/new')}
+            >
+              New Submission
+            </button>
+          </div>
         </div>
         <div className="submissions-table">
-          {staffSubmissions.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No submissions found.</div>
-          ) : (
-            <table>
-              <thead>
+          <table>
+            <thead>
+              <tr>
+                <th>Submission No</th>
+                <th>Subject</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Current Reviewer</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedStaffSub.length === 0 ? (
                 <tr>
-                  <th>Submission No</th>
-                  <th>Subject</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Current Reviewer</th>
-                  <th>Actions</th>
+                  <td colSpan="7" style={{ textAlign: 'center', color: '#888', padding: '32px' }}>
+                    No submissions found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {staffSubmissions.map(submission => (
+              ) : (
+                displayedStaffSub.map(submission => (
                   <tr key={submission.id}>
                     <td>#{submission.id}</td>
                     <td>{submission.subject}</td>
@@ -125,16 +155,60 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                       </button>
                     </td>
                   </tr>
-                ))}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* New Receiver Box Section */}
+        <div className="receiver-box" style={{ marginTop: 32, position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>Received Forms</h3>
+            {showViewAllReceived && (
+              <button className="view-all-btn" onClick={() => {/* TODO: handle view all */}}>
+                View All
+              </button>
+            )}
+          </div>
+          <div className="submissions-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Form No</th>
+                  <th>Sender</th>
+                  <th>Subject</th>
+                  <th>Date Received</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedReceivedForms.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', color: '#888', padding: '32px' }}>
+                      No forms received.
+                    </td>
+                  </tr>
+                ) : (
+                  displayedReceivedForms.map(form => (
+                    <tr key={form.id} className={`row-status-${form.status?.toLowerCase?.() || ''}`}>
+                      <td>#{form.id}</td>
+                      <td>{form.sender}</td>
+                      <td>{form.subject}</td>
+                      <td>{form.dateReceived}</td>
+                      <td>{form.status}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
       </div>
     );
   }
 }
 
+// Dashboard: Handles user authentication and passes data to RoleDashboard
 function Dashboard() {
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState();

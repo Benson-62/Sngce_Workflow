@@ -1,3 +1,8 @@
+// ===============================
+// File: src/AdminPanel.jsx
+// Description: Admin dashboard for managing users, submissions, and settings.
+// ===============================
+
 import React, { useState } from 'react';
 
 const BUTTON_STYLE = {
@@ -19,6 +24,7 @@ const BUTTON_ACTIVE = {
   transform: 'scale(1.05)',
 };
 
+// AdminPanel: Main admin dashboard component
 function AdminPanel() {
   const [section, setSection] = useState('dashboard');
   const [theme, setTheme] = useState('light');

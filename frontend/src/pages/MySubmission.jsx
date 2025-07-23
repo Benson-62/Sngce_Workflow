@@ -1,6 +1,12 @@
+// ===============================
+// File: src/pages/MySubmission.jsx
+// Description: Shows user's own submissions and received messages.
+// ===============================
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// MySubmission: Main component for displaying user's submissions and received messages
 function MySubmission() {
   const navigate = useNavigate();
   const submissions = JSON.parse(localStorage.getItem('mysubmissions') || '[]');

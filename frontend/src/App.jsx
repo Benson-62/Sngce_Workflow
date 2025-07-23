@@ -1,6 +1,11 @@
+// ===============================
+// File: src/App.jsx
+// Description: Main entry point for routing and layout. Sets up navigation and page routes.
+// ===============================
+
 // frontend/src/App.jsx
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -11,6 +16,7 @@ import ReceivedForms from './pages/ReceivedForms';
 import ReceivedFormView from './pages/ReceivedFormView';
 import './App.css';
 
+// App: Main application component with router and navigation
 function App() {
   return (
     <Router>

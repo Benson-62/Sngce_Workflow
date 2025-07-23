@@ -1,3 +1,8 @@
+// ===============================
+// File: src/pages/LoginPage.jsx
+// Description: Login form for users. Handles authentication and redirects.
+// ===============================
+
 // frontend/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +15,7 @@ function detectRole(email) {
   return 'staff';
 }
 
+// LoginPage: Main login form component
 function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',

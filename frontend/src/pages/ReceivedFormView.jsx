@@ -1,3 +1,8 @@
+// ===============================
+// File: src/pages/ReceivedFormView.jsx
+// Description: Detailed view of a single received form. Allows status updates and remarks.
+// ===============================
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -41,6 +46,7 @@ const statusColors = {
   forwarded: 'orange',
 };
 
+// ReceivedFormView: Main component for viewing a single received form
 export default function ReceivedFormView() {
   const { id } = useParams();
   const userRole = localStorage.getItem('userRole') || 'staff';

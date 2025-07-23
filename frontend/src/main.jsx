@@ -1,3 +1,8 @@
+// ===============================
+// File: src/main.jsx
+// Description: React app bootstrapper. Renders App into the root element.
+// ===============================
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';

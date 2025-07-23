@@ -1,4 +1,7 @@
-// frontend/src/pages/NewSubmission.jsx
+// ===============================
+// File: src/pages/NewSubmission.jsx
+// Description: Page for creating and submitting new forms. Handles form logic for students and staff.
+// ===============================
 import React, { useState, useEffect, useRef } from 'react';
 import './NewSubmission.css';
 import jsPDF from 'jspdf';
@@ -82,6 +85,7 @@ const DEPARTMENT_OPTIONS = [
 //   console.log(jwtDecode(token))
 // }
 
+// NewSubmission: Main component for new form submission
 function NewSubmission() {
   const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({

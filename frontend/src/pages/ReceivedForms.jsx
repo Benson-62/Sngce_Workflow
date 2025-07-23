@@ -1,3 +1,8 @@
+// ===============================
+// File: src/pages/ReceivedForms.jsx
+// Description: Page listing all received forms (for staff/admin).
+// ===============================
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ReceivedForms.css';
@@ -63,6 +68,7 @@ const statusLabels = {
   forwarded: 'Forwarded',
 };
 
+// ReceivedForms: Main component for listing received forms
 export default function ReceivedForms({ previewMode }) {
   const [forms] = useState(mockForms);
   const navigate = useNavigate();
