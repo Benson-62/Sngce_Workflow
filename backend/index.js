@@ -1,64 +1,184 @@
-var express=require('express');
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 require('./connection');
-var logmodel=require('./models/User');
-var cors = require('cors')
-var bcrypt = require('bcrypt')
-var jwt = require('jsonwebtoken');
+
+const logmodel = require('./models/User');
+
 const PORT = process.env.PORT || 3096;
 
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '15mb' }));
 
+// Models
+const fFormModel = require('./models/facultyForm');
+const sFormModel = require('./models/studentForm');
+const fAdvisorModel = require('./models/facultyAdvisor');
 
-var app=express();
-app.use(cors())
-app.use(express.json());
+// Routes
 
-// app.get('/',(req,res)=>(
-//   res.send('Hello from backend')
-// ))
-
-app.post('/createAccount',async(req,res)=>{  
-    var {fName,lName,email, password, role} = req.body
-    console.log(email)
-    console.log(password)
-    const hashedPassword = await bcrypt.hash(password, 10);
-    try {
-        await logmodel({fName,lName,email : email, password : hashedPassword,role:role}).save()
-        res.send("user added")
-    } catch (error) {
-        console.log(error);
-    }
-});
-
-app.post('/login',async(req,res)=>{
-    var {email, password, role} = req.body;
-    try {
-        var usr =await logmodel.findOne({email});
-        if(!usr){
-            return res.status(400).send("Invalid Credentials Usrname")
-        }
-        const isMatch = await bcrypt.compare(password, usr.password);
-        if (!isMatch) {
-            return res.status(400).send("Invalid credentials Passwrd");
-        }
-        // Generate JWT
-        const token = jwt.sign({
-          _id: usr._id,
-          email: usr.email,
-          role: usr.role
-        }, 'pineapplepie', { expiresIn: '2h' });
-        res.send({
-            _id: usr._id,
-            fName : usr.fName,
-            lName : usr.lName,
-            email: usr.email,
-            role: usr.role,
-            token
-          });
-    } catch (error) {
-        console.log(error);
-    }
-});
-
-app.listen(PORT,()=>{
-    console.log(`Port is up and running at ${PORT}`);
+app.get('/getFacultyAdvisor',async(req,res)=>{
+  var {year, department} = req.body;
+  try{
+    const adv  = await fAdvisorModel.find({
+      year, department
+    })
+    console.log('successful')
+    console.log(adv)
+    res.send(adv)
+  }catch (error){
+    console.log(error)
+    res.send(error)
+  }
 })
+// Filtered Faculty Forms
+app.get('/getFForms', async(req,res)=>{
+var {role, department} = req.body;
+console.log(role)
+console.log(department)
+  try{
+    if(role != 'Principal' || role != 'Manager'){
+      const formVar = await fFormModel.find({to :role, department : department});
+      console.log("1")
+      console.log(formVar)
+      res.send(formVar)
+    }else{
+      const formVar = await fFormModel.find({to : role});
+      console.log(formVar)
+      res.send(formVar)
+    }
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Filtered Student Forms
+app.get('/getSForms', async(req,res)=>{
+var {role, department} = req.body;
+console.log(role)
+console.log(department)
+  try{
+    if(role != 'Principal' || role != 'Manager'){
+      const formVar = await sFormModel.find({to :role, department : department});
+      console.log("1")
+      console.log(formVar)
+      res.send(formVar)
+    }else{
+      const formVar = await sFormModel.find({to : role});
+      console.log(formVar)
+      res.send(formVar)
+    }
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Get all Faculty Forms
+app.get('/getAllFForms', async(req,res)=>{
+  try{
+    const formVar = await fFormModel.find();
+    console.log(formVar)
+    res.send(formVar)
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+// Get all Student Forms
+app.get('/getAllSForms', async(req,res)=>{
+  try{
+    const formVar = await sFormModel.find();
+    console.log(formVar)
+    res.send(formVar)
+  }catch(error){
+    console.log(error)
+    res.send(error)
+  }
+})
+
+app.post('/createFacultyAdvisor', async (req,res)=> {
+  const { year, department, facultyNames} = req.body;
+  try {
+    await fAdvisorModel({year, department, facultyNames}).save();
+    console.log("Saved to DB!");
+    res.send("Saved to DB!");
+  } catch (error){
+    console.log(error);
+    res.send(error);
+  }
+});
+
+
+app.post('/facultyFormSubmission', async (req, res) => {
+  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  console.log(req.body);
+  try {
+    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("form submitted!")
+    res.send('Form submitted');
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Form submission failed");
+  }
+});
+app.post('/studentFormSubmission', async (req, res) => {
+  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  console.log(req.body);
+  try {
+    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("form submitted!")
+    res.send('Form submitted');
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Form submission failed");
+  }
+});
+
+app.post('/createAccount', async (req, res) => {
+  const { fName, lName, email, password, role } = req.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  try {
+    await logmodel({ fName, lName, email, password: hashedPassword, role }).save();
+    res.send("User added");
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Account creation failed");
+  }
+});
+
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const usr = await logmodel.findOne({ email });
+    if (!usr) return res.status(400).send("Invalid Credentials");
+
+    const isMatch = await bcrypt.compare(password, usr.password);
+    if (!isMatch) return res.status(400).send("Invalid Credentials");
+
+    const token = jwt.sign(
+      { _id: usr._id, email: usr.email, role: usr.role },
+      'pineapplepie',
+      { expiresIn: '2h' }
+    );
+
+    res.send({
+      _id: usr._id,
+      fName: usr.fName,
+      lName: usr.lName,
+      email: usr.email,
+      role: usr.role,
+      token
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Login failed");
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Port is up and running at ${PORT}`);
+});

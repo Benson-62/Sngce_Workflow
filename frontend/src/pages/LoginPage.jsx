@@ -32,18 +32,18 @@ function LoginPage() {
       setError('Please enter email and password');
       return;
     }
-    // Admin login shortcut
-    if (
-      formData.email === 'admin@sngce.ac.in' &&
-      formData.password === 'admin@123'
-    ) {
-      localStorage.setItem('token', 'admin-token');
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('userEmail', 'admin@sngce.ac.in');
-      localStorage.setItem('userName', 'Admin');
-      navigate('/admin');
-      return;
-    }
+    // // Admin login shortcut
+    // if (
+    //   formData.email === 'admin@sngce.ac.in' &&
+    //   formData.password === 'admin@123'
+    // ) {
+    //   localStorage.setItem('token', 'admin-token');
+    //   localStorage.setItem('userRole', 'admin');
+    //   localStorage.setItem('userEmail', 'admin@sngce.ac.in');
+    //   localStorage.setItem('userName', 'Admin');
+    //   navigate('/admin');
+    //   return;
+    // }
     try {
       const response = await fetch('http://localhost:3096/login', {
         method: 'POST',
@@ -57,8 +57,6 @@ function LoginPage() {
       }
       const data = await response.json();
       localStorage.setItem('token', data.token);
-      localStorage.setItem('userRole', data.role);
-      localStorage.setItem('userEmail', data.email);
       localStorage.setItem('userName', `${data.fName} ${data.lName}`);
       window.dispatchEvent(new Event('authChanged'));
       navigate('/dashboard');

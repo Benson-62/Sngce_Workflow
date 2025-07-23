@@ -10,7 +10,7 @@ const userSchema = mongoose.Schema({
   },
   dept :{
     type: String,
-    enum : ["CS", "EC","ME", "EEE", "CE", "NASB"],
+    enum : ["CSE", "NASB","ECE", "EEE", "ME", "CE", "AI", "CS", "MCA"],
     require: true
   },
   email: {
@@ -28,5 +28,6 @@ const userSchema = mongoose.Schema({
     required: true
   }
 }, { timestamps: true });
+
 var User=mongoose.model("User",userSchema);
 module.exports=User;
