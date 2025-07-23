@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const BUTTON_STYLE = {
   background: 'linear-gradient(90deg, #2563eb 0%, #1e293b 100%)',
@@ -24,14 +25,21 @@ function AdminPanel() {
   const [theme, setTheme] = useState('light');
   const [siteTitle, setSiteTitle] = useState('SNGCE Workflow');
 
-  // Demo: Load data from localStorage
-  const [users, setUsers] = useState(() => {
-    const regUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    return [
-      { email: 'admin@sngce.ac.in', name: 'Admin', role: 'admin' },
-      ...regUsers
-    ];
-  });
+  // Load real users from backend
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get('http://localhost:3096/getAllUsers');
+        setUsers(res.data || []);
+      } catch (err) {
+        setUsers([]);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // Demo: Load submissions and received messages from localStorage (can be replaced with backend)
   const [submissions, setSubmissions] = useState(
     JSON.parse(localStorage.getItem('mysubmissions') || '[]')
   );
@@ -44,7 +52,7 @@ function AdminPanel() {
     if (window.confirm('Are you sure you want to delete this user?')) {
       const updated = users.filter(u => u.email !== email);
       setUsers(updated);
-      localStorage.setItem('registeredUsers', JSON.stringify(updated.filter(u => u.email !== 'admin@sngce.ac.in')));
+      // TODO: Call backend to delete user
     }
   };
 
@@ -125,12 +133,12 @@ function AdminPanel() {
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.email} style={{ background: u.email === 'admin@sngce.ac.in' ? '#e0e7ef' : 'inherit' }}>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{u.name || '-'}</td>
+                  <tr key={u.email} style={{ background: u.role === 'Admin' ? '#e0e7ef' : 'inherit' }}>
+                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{u.fName || '-'} {u.lName || ''}</td>
                     <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{u.email}</td>
                     <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{u.role}</td>
                     <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
-                      {u.email !== 'admin@sngce.ac.in' && (
+                      {u.role !== 'Admin' && (
                         <button style={{ ...BUTTON_STYLE, background: 'linear-gradient(90deg, #ef4444 0%, #1e293b 100%)' }} onClick={() => handleDeleteUser(u.email)}>Delete</button>
                       )}
                     </td>

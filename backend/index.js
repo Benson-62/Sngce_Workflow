@@ -121,6 +121,26 @@ app.get('/getFFormsByUser', async (req, res) => {
     res.status(500).send(error);
   }
 });
+// Get single Student Form by ID
+app.get('/getSFormById/:id', async (req, res) => {
+  try {
+    const form = await sFormModel.findById(req.params.id);
+    if (!form) return res.status(404).send('Not found');
+    res.send(form);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+// Get single Faculty Form by ID
+app.get('/getFFormById/:id', async (req, res) => {
+  try {
+    const form = await fFormModel.findById(req.params.id);
+    if (!form) return res.status(404).send('Not found');
+    res.send(form);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
 
 app.post('/createFacultyAdvisor', async (req,res)=> {
   const { year, department, facultyNames} = req.body;
@@ -198,6 +218,16 @@ app.post('/login', async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).send("Login failed");
+  }
+});
+
+// Get all users
+app.get('/getAllUsers', async (req, res) => {
+  try {
+    const users = await logmodel.find();
+    res.send(users);
+  } catch (error) {
+    res.status(500).send(error);
   }
 });
 

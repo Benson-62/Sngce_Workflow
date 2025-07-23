@@ -28,17 +28,15 @@ export default function SubmissionView() {
       setLoading(true);
       setError('');
       try {
-        // Try both student and faculty endpoints
-        let res = await axios.get(`http://localhost:3096/getSFormsByUser?email=all`);
-        let found = (res.data || []).find(f => f._id === id);
-        if (!found) {
-          res = await axios.get(`http://localhost:3096/getFFormsByUser?email=all`);
-          found = (res.data || []).find(f => f._id === id);
+        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+        setSubmission(res.data);
+      } catch (err1) {
+        try {
+          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+          setSubmission(res.data);
+        } catch (err2) {
+          setError('Submission not found or failed to load.');
         }
-        if (!found) throw new Error('Submission not found');
-        setSubmission(found);
-      } catch (err) {
-        setError('Submission not found or failed to load.');
       } finally {
         setLoading(false);
       }
