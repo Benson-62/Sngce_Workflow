@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import NewSubmission from './pages/NewSubmission';
 import AdminPanel from './AdminPanel';
 import './App.css';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submission/new" element={<NewSubmission />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/ProfilePage" element={<ProfilePage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>

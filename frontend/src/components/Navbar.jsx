@@ -52,6 +52,8 @@ function Navbar() {
       </div>
       <div className="nav-links">
         <Link to="/dashboard">Dashboard</Link>
+        <Link to="/ProfilePage">profile</Link>
+
         <Link to="/submission/new">New Submission</Link>
         {userRole === 'admin' && (
           <>
