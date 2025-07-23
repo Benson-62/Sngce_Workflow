@@ -1,5 +1,6 @@
 import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState } from 'react';
+import './ProfilePage.css';
 
 const ProfilePage = () => {
     const [role, setRole] = useState();
@@ -15,34 +16,29 @@ const ProfilePage = () => {
 
  
   return (
-    <div style={styles.container}>
+    <div className="profile-container">
       <h2>Profile Page</h2>
-      <div style={styles.card}>
-        <p><strong>Email:</strong> {email}</p>
-        <p><strong>Role:</strong> {role}</p>
-        <p><strong>Department:</strong> {department}</p>
+      <div className="profile-card">
+        <div className="profile-avatar">
+          {email ? email.charAt(0).toUpperCase() : <span>👤</span>}
+        </div>
+        <div className="profile-details">
+          <div className="profile-label">Email:</div>
+          <div className="profile-value">{email}</div>
+          <div className="profile-label">Role:</div>
+          <div className="profile-value">{role}</div>
+
+          {/* ✅ Conditionally render Department */}
+          {!['admin', 'principal', 'manager'].includes(role?.toLowerCase()) && (
+            <>
+              <div className="profile-label">Department:</div>
+              <div className="profile-value">{department}</div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 };
-
-// Inline styles (can be moved to CSS)
-const styles = {
-  container: {
-    maxWidth: '500px',
-    margin: '0 auto',
-    padding: '2rem',
-    fontFamily: 'Arial, sans-serif',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '10px',
-  },
-  card: {
-    backgroundColor: '#fff',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  }
-};
-
 
 export default ProfilePage;
