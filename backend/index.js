@@ -21,20 +21,46 @@ const fAdvisorModel = require('./models/facultyAdvisor');
 
 // Routes
 
-app.get('/getFacultyAdvisor',async(req,res)=>{
-  var {year, department} = req.body;
-  try{
-    const adv  = await fAdvisorModel.find({
-      year, department
-    })
-    console.log('successful')
-    console.log(adv)
-    res.send(adv)
-  }catch (error){
-    console.log(error)
-    res.send(error)
+/**
+ * GET /getFacultyAdvisor
+ * Finds the class assignments for a specific faculty member within a department.
+ *
+ * Query Parameters:
+ * - email (string): The faculty member's email address.
+ * - department (string): The department to search within.
+ */
+app.get('/getFacultyAdvisor', async (req, res) => {
+  const { email, department } = req.query;
+  // console.log(email, department);
+  // --- Basic input validation ---
+  if (!email || !department) {
+    return res.status(400).send({ message: 'Email and department are required query parameters.' });
   }
-})
+
+  try {
+    // --- Corrected Mongoose Query ---
+    // 1. Use 'facultyNames.email' to query the nested field inside the array.
+    // 2. Combine conditions in a single query object. This is an implicit "AND".
+    const assignments = await fAdvisorModel.find({
+      department: department,
+      'facultyNames.email': email
+    });
+    // console.log(assignments)
+
+    if (assignments.length === 0) {
+      // It's good practice to handle cases where nothing is found.
+      return res.status(404).send({ message: 'No assignments found for this faculty member in the specified department.' });
+    }
+
+    // console.log('Successfully found assignments:', assignments);
+    res.status(200).send(assignments);
+
+  } catch (error) {
+    console.error("Error in /getFacultyAdvisor:", error);
+    // --- Send a structured error response ---
+    res.status(500).send({ message: 'An error occurred while fetching advisor data.', error: error.message });
+  }
+});
 // Filtered Faculty Forms
 app.get('/getFForms', async(req,res)=>{
 var {role, department} = req.body;
@@ -204,7 +230,7 @@ app.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).send("Invalid Credentials");
 
     const token = jwt.sign(
-      { _id: usr._id, email: usr.email, role: usr.role },
+      { _id: usr._id, email: usr.email, role: usr.role, department: usr.department, year : usr.year, div : usr.div },
       'pineapplepie',
       { expiresIn: '2h' }
     );
@@ -262,34 +288,87 @@ app.get('/getFormsForUser', async (req, res) => {
 });
 
 // Endpoint to get received forms for a user
+/**
+ * GET /getReceivedFormsForUser
+ * Fetches forms that have been sent to a specific user based on their role, department, year, and division.
+ *
+ * Query Parameters:
+ * - role (string): The user's role (e.g., 'FacultyAdvisor', 'HOD', 'Principal').
+ * - department (string): The user's department (required for 'FacultyAdvisor' and 'HOD').
+ * - year (number): The user's assigned year (required for 'FacultyAdvisor').
+ * - div (string): The user's assigned division (required for 'FacultyAdvisor').
+ */
 app.get('/getReceivedFormsForUser', async (req, res) => {
-  const { email, role } = req.query;
-  try {
-    // For faculty forms: received if 'to' includes the user's email or role
-    const facultyReceived = await fFormModel.find({ to: { $in: [email, role] } });
+  const { role, department, year, div } = req.query;
+  console.log(role, department, year, div);
 
-    // For student forms: received if 'to' includes the user's email or role
-    // If sent to HoD or higher, must also be routed through Faculty Advisor
-    const studentForms = await sFormModel.find();
-    const studentReceived = studentForms.filter(form => {
-      // If the form is sent to HoD or Principal or Manager, it must also include Faculty Advisor
+  // --- Input Validation ---
+  if (!role) {
+    return res.status(400).send({ message: 'Role is a required query parameter.' });
+  }
+  if (role === 'HOD' && !department) {
+    return res.status(400).send({ message: 'Department is required for HOD role.' });
+  }
+  if (role === 'FacultyAdvisor' && (!department || !year || !div)) {
+    return res.status(400).send({ message: 'Department, year, and div are required for FacultyAdvisor role.' });
+  }
+
+  try {
+    // --- 1. Find Received Forms from Faculty/Staff ---
+    // For staff forms, we only check if the 'to' field contains the user's role.
+    // The more specific checks are only applied to student forms.
+    const facultyQuery = { to: role };
+    const facultyReceived = await fFormModel.find(facultyQuery);
+
+    // --- 2. Find Received Forms from Students ---
+    // Student forms require specific checks for HOD (department) and FacultyAdvisor (department, year, div).
+    // We use .lean() for better performance as it returns plain JS objects.
+    const allStudentForms = await sFormModel.find().lean();
+
+    const studentReceived = allStudentForms.filter(form => {
       const toArray = Array.isArray(form.to) ? form.to : [form.to];
+
+      // Check #1: Is the current user an intended recipient of this form?
+      const isRecipient = toArray.includes(role) && (
+        // For HOD, department must also match
+        (role === 'HOD' && form.department === department) ||
+        // For FacultyAdvisor, department, year, and div must match
+        (role === 'FacultyAdvisor' && form.department === department && form.year == year && form.div === div) ||
+        // For other roles (Principal, etc.), role match is sufficient
+        !['HOD', 'FacultyAdvisor'].includes(role)
+      );
+
+      // If the user isn't a recipient, we can immediately exclude this form.
+      if (!isRecipient) {
+        return false;
+      }
+
+      // Check #2: Does the form follow the routing hierarchy rule?
+      // Rule: If a form is addressed to HOD or higher, it must have been routed via the FacultyAdvisor.
       const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'Manager'].includes(r));
       const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
-      // If it's to HoD or higher, must also include FacultyAdvisor
-      if (isToHodOrHigher && !includesFacultyAdvisor) return false;
-      // Received if the user is in the 'to' field (by email or role)
-      return toArray.includes(email) || toArray.includes(role);
+
+      if (isToHodOrHigher && !includesFacultyAdvisor) {
+        // This form is "stuck" and hasn't been routed correctly yet, so don't show it.
+        return false;
+      }
+
+      // If both checks pass, include the form.
+      return true;
     });
     console.log(facultyReceived, studentReceived);
+    // --- 3. Combine, Format, and Send the Response ---
     res.send([
       ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
-      ...studentReceived.map(s => ({ ...s.toObject(), owner: 'student' }))
+      ...studentReceived.map(s => ({ ...s, owner: 'student' })) // .lean() was used, so .toObject() is not needed
     ]);
+
   } catch (error) {
-    res.status(500).send(error);
+    console.error("Error in /getReceivedFormsForUser:", error);
+    res.status(500).send({ message: "An error occurred while fetching forms.", error: error.message });
   }
 });
+
 
 // Endpoint to update remarks and status for a form
 app.put('/updateFormRemarksStatus', async (req, res) => {

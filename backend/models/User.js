@@ -8,7 +8,7 @@ const userSchema = mongoose.Schema({
     type : String,
     required : true,
   },
-  dept :{
+  department :{
     type: String,
     enum : ["CSE", "NASB","ECE", "EEE", "ME", "CE", "AI", "CS", "MCA"],
     require: true
@@ -26,7 +26,13 @@ const userSchema = mongoose.Schema({
     type: String, 
     enum : ["Student", "Faculty", "Principal", "Manager", "HOD", "FacultyAdvisor", "Admin"],
     required: true
-  }
+  },
+  div : {
+    type: String
+  },
+  year : {
+    type: Number
+  },
 }, { timestamps: true });
 
 var User=mongoose.model("User",userSchema);

@@ -13,7 +13,11 @@ export default function ReceivedForms({ previewMode }) {
     const token = jwtDecode(localStorage.getItem('token'));
     const email = token.email;
     const role = token.role;
-    axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`)
+    const payload = JSON.stringify({
+        role : role,
+        department : email
+      });
+    axios.get(`http://localhost:3096/getReceivedFormsForUser`, payload)
       .then(res => setForms(res.data || []))
       .catch(() => setForms([]))
       .finally(() => setLoading(false));

@@ -188,7 +188,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* New column for status dot */}
+                  <th>Status</th>{/* New column for status dot */}
                 </tr>
               </thead>
               <tbody>
@@ -247,6 +247,8 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [errorReceived, setErrorReceived] = useState('');
   const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
+  const [yearVar, setYear] = useState(''); // Default year
+  const [divVar, setDiv] = useState(''); // Default division
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -282,37 +284,80 @@ function Dashboard() {
   };
 
   useEffect(() => {
-      var token = jwtDecode(localStorage.getItem('token'));
-      if (!token) {
-        navigate('/login');
-        return;
+  const token = jwtDecode(localStorage.getItem('token'));
+  if (!token) {
+    navigate('/login');
+    return;
+  }
+  setUserRole(token.role);
+  const email = token.email;
+  const role = token.role;
+  const department = token.department;
+
+  // 1. Modify fetchReceived to accept year and div as arguments
+  const fetchReceived = async (year, div) => {
+    // Use the passed-in year and div. Provide default empty strings if they are undefined.
+    const yearToFetch = year || '';
+    const divToFetch = div || '';
+
+    try {
+      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(yearToFetch)}&div=${encodeURIComponent(divToFetch)}`);
+      console.log(res)
+      setReceivedSubmissions(res.data || []);
+    } catch (err) {
+      setErrorReceived('Failed to fetch received submissions');
+    } finally {
+      setLoadingReceived(false);
+    }
+  };
+
+  const fetchFA = async () => {
+    try {
+      const res = await axios.get(`http://localhost:3096/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
+      
+      if (res.data && res.data.length > 0) {
+        const yearFromAPI = res.data[0].year;
+        const divFromAPI = res.data[0].div;
+        
+        setYear(yearFromAPI);
+        setDiv(divFromAPI);
+
+        // 2. THE FIX: Call fetchReceived from here with the NEW data
+        fetchReceived(yearFromAPI, divFromAPI);
+      } else {
+        // Handle case where FA has no assignments
+        fetchReceived(); // Call with no args, so it fetches with empty year/div
       }
-      setUserRole(token.role);
-      const email = token.email;
-      const role = token.role;
-      const fetchSubmissions = async () => {
-        try {
-          const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-          setSubmissions(res.data || []);
-        } catch (err) {
-          setError('Failed to fetch submissions');
-        } finally {
-          setLoading(false);
-        }
-      };
-      const fetchReceived = async () => {
-        try {
-          const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-          setReceivedSubmissions(res.data || []);
-        } catch (err) {
-          setErrorReceived('Failed to fetch received submissions');
-        } finally {
-          setLoadingReceived(false);
-        }
-      };
-      fetchSubmissions();
+
+    } catch (err) {
+      console.error('Failed to fetch faculty advisor:', err);
+      // If fetching FA fails, still try to fetch received forms without year/div
       fetchReceived();
-    }, [navigate]);
+    }
+  };
+
+  const fetchSubmissions = async () => {
+    try {
+      const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+      setSubmissions(res.data || []);
+    } catch (err) {
+      setError('Failed to fetch submissions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Execution Logic ---
+  fetchSubmissions(); // This can run on its own
+
+  // 3. The logic is now simpler here
+  if (role === 'FacultyAdvisor' || role === 'facultyadvisor') {
+    fetchFA(); // This will now trigger fetchReceived internally
+  } else {
+    // For other roles, call fetchReceived directly
+    fetchReceived();
+  }
+}, [navigate]);
   if (loading) {
     return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
   }

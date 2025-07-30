@@ -42,7 +42,15 @@ const studentFormSchema = new mongoose.Schema({
     submittedBy : {
         type : String,
         required : true
-    }
+    },
+    year : {
+        type: Number,
+        required: true
+    },
+    div : {
+        type: String,
+        required: true
+    },
 }, { timestamps: true });
 
 studentFormSchema.pre("save", async function (next) {

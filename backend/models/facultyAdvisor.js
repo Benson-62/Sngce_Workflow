@@ -3,6 +3,9 @@ const FacultyAdvisorSchema = mongoose.Schema({
     year : {
         type : Number
     },
+    div : {
+      type : String,
+    },
     department : {
         type : String
     },
