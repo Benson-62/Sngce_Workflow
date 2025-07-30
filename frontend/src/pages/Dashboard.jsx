@@ -188,7 +188,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th>{/* New column for status dot */}
+                  <th>Status</th> {/* New column for status dot */}
                 </tr>
               </thead>
               <tbody>
@@ -260,27 +260,26 @@ function Dashboard() {
   };
 
   // Handler for save
-  // const handleSave = async (form) => {
-  //   const formId = form._id || form.id;
-  //   const formType = form.owner === 'student' ? 'student' : 'faculty';
-  //   const { remarks, status } = editRows[formId] || {};
-  //   setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
-  //   console.log({formId, formType, remarks, status})
-  //   try {
-  //     const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
-  //       formId,
-  //       formType,
-  //       remarks,
-  //       status,
-  //     });
-  //     // Optimistically update the receivedSubmissions state
-  //     setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
-  //   } catch (err) {
-  //     alert('Failed to update.');
-  //   } finally {
-  //     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
-  //   }
-  // };
+  const handleSave = async (form) => {
+    const formId = form._id || form.id;
+    const formType = form.owner === 'student' ? 'student' : 'faculty';
+    const { remarks, status } = editRows[formId] || {};
+    setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
+    try {
+      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId,
+        formType,
+        remarks,
+        status,
+      });
+      // Optimistically update the receivedSubmissions state
+      setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
+    } catch (err) {
+      alert('Failed to update.');
+    } finally {
+      setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
+    }
+  };
 
   useEffect(() => {
       var token = jwtDecode(localStorage.getItem('token'));

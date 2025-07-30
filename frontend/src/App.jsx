@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import NewSubmission from './pages/NewSubmission';
 import AdminPanel from './AdminPanel';
+import ReceivedForms from './pages/ReceivedForms';
 import ReceivedFormView from './pages/ReceivedFormView';
 import SubmissionView from './pages/SubmissionView';
 import './App.css';
@@ -23,13 +24,13 @@ function App() {
           <Route path="/submission/new" element={<NewSubmission />} />
           <Route path="/submission/:id" element={<SubmissionView />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/received-forms" element={<ReceivedForms />} />
           <Route path="/received-forms/:id" element={<ReceivedFormView />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
     </Router>
   );
-  
 }
 
 export default App; 
