@@ -45,11 +45,9 @@ const studentFormSchema = new mongoose.Schema({
     },
     year : {
         type: Number,
-        required: true
     },
     div : {
         type: String,
-        required: true
     },
 }, { timestamps: true });
 

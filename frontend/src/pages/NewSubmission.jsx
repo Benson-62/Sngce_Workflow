@@ -197,6 +197,8 @@ function NewSubmission() {
         details: formStudent.details,
         submittedBy: String(email),
         attachment: attachment,
+        year : year,
+        div : div
       });
       await axios.post('http://localhost:3096/studentFormSubmission', payload, {
         headers: {

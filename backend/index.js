@@ -196,10 +196,10 @@ app.post('/facultyFormSubmission', async (req, res) => {
   }
 });
 app.post('/studentFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  const { date, to, subject, others, department, details, attachment , submittedBy, div, year} = req.body;
   console.log(req.body);
   try {
-    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy , div, year}).save();
     console.log("form submitted!")
     res.send('Form submitted');
   } catch (error) {
