@@ -127,9 +127,9 @@ function NewSubmission() {
 
   // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
   useEffect(() => {
-    if (userRole === 'student') {
-      const mustIncludeFaculty = formStudent.to.includes('principal') || formStudent.to.includes('hod');
-      if (mustIncludeFaculty && !formStudent.to.includes('faculty')) {
+    if (userRole === 'Student') {
+      const mustIncludeFaculty = formStudent.to.includes('Principal') || formStudent.to.includes('hod');
+      if (mustIncludeFaculty && !formStudent.to.includes('Faculty')) {
         // Only update if 'faculty' is not already the first element
         if (formStudent.to[0] !== 'faculty') {
           setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to.filter(v => v !== 'faculty')] }));
@@ -258,7 +258,7 @@ function NewSubmission() {
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
     // Add attachment on second page if present and is image or PDF
-    const attachment = userRole === 'student' ? attachmentStudent : attachmentStaff;
+    const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
     if (attachment) {
       pdf.addPage();
       if (attachment.type.startsWith('image/')) {
@@ -566,27 +566,27 @@ function NewSubmission() {
       </div>
       <div style={{ marginBottom: 24 }}>
         <div>To,</div>
-        <div style={{ marginLeft: 32 }}>{userRole === 'student' ? getRecipientLabels(formStudent.to, formStudent.toOthers, true) : getRecipientLabels(formStaff.to, formStaff.toOthers, false)}</div>
+        <div style={{ marginLeft: 32 }}>{userRole === 'Student' ? getRecipientLabels(formStudent.to, formStudent.toOthers, true) : getRecipientLabels(formStaff.to, formStaff.toOthers, false)}</div>
       </div>
       <div style={{ marginBottom: 24 }}>
         <div><b>Subject:</b> {
-          PURPOSE_OPTIONS.find(opt => opt.value === (userRole === 'student' ? formStudent.subject : formStaff.subject))?.label || ''
+          PURPOSE_OPTIONS.find(opt => opt.value === (userRole === 'Student' ? formStudent.subject : formStaff.subject))?.label || ''
         }</div>
       </div>
       <div style={{ marginBottom: 24 }}>
         <div>Respected Sir/Madam,</div>
         <div style={{ marginTop: 16, marginLeft: 32 }}>
-          {userRole === 'student' ? formStudent.details : formStaff.details}
+          {userRole === 'Student' ? formStudent.details : formStaff.details}
         </div>
         {/* Remarks removed for staff */}
-        {(userRole === 'student' ? attachmentStudent : attachmentStaff) && (
+        {(userRole === 'Student' ? attachmentStudent : attachmentStaff) && (
           <div style={{ marginTop: 16, marginLeft: 32 }}>
-            <b>Attachment:</b> {(userRole === 'student' ? attachmentStudent : attachmentStaff).name}
+            <b>Attachment:</b> {(userRole === 'Student' ? attachmentStudent : attachmentStaff).name}
           </div>
         )}
       </div>
       <div style={{ marginTop: 48 }}>
-        <div>Department: {getDeptLong(userRole === 'student' ? formStudent.department : formStaff.department)}</div>
+        <div>Department: {getDeptLong(userRole === 'Student' ? formStudent.department : formStaff.department)}</div>
       </div>
     </div>
   );
@@ -600,7 +600,7 @@ function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView,
   return (
     <div className="submission-outer">
       <h1 className="submission-main-title">Submission and Approval</h1>
-      {showPrintView ? printLetterView : (userRole === 'student' ? studentForm : staffForm)}
+      {showPrintView ? printLetterView : (userRole === 'Student' ? studentForm : staffForm)}
     </div>
   );
 }
