@@ -41,7 +41,7 @@ var {role, department} = req.body;
 console.log(role)
 console.log(department)
   try{
-    if(role != 'Principal' || role != 'Manager'){
+    if(role != 'principal' || role != 'manager'){
       const forms = await fFormModel.find({to :role, department : department});
       console.log("1")
       console.log(forms)
@@ -62,7 +62,7 @@ var {role, department} = req.body;
 console.log(role)
 console.log(department)
   try{
-    if(role != 'Principal' || role != 'Manager'){
+    if(role != 'principal' || role != 'manager'){
       const forms = await sFormModel.find({to :role, department : department});
       console.log("1")
       console.log(forms)
@@ -127,8 +127,7 @@ app.get('/getSFormById/:id', async (req, res) => {
   try {
     const form = await sFormModel.findById(req.params.id);
     if (!form) return res.status(404).send('Not found');
-    form.map(s=>({...s.toObject(), owner : 'student'}));
-    console.log(res)
+    res.send({ ...form.toObject(), owner: 'student' });
   } catch (error) {
     res.status(500).send(error);
   }
@@ -139,7 +138,7 @@ app.get('/getFFormById/:id', async (req, res) => {
   try {
     const form = await fFormModel.findById(req.params.id);
     if (!form) return res.status(404).send('Not found');
-    res.send(form.map(s => ({ ...s.toObject(), owner: 'faculty' })));
+    res.send({ ...form.toObject(), owner: 'faculty' });  
   } catch (error) {
     res.status(500).send(error);
   }
@@ -282,7 +281,7 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
       // Received if the user is in the 'to' field (by email or role)
       return toArray.includes(email) || toArray.includes(role);
     });
-
+    console.log(facultyReceived, studentReceived);
     res.send([
       ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
       ...studentReceived.map(s => ({ ...s.toObject(), owner: 'student' }))
