@@ -99,6 +99,8 @@ app.get('/getAllSForms', async(req,res)=>{
     res.send(error)
   }
 })
+
+//archive form backend
 // Get Student Forms by user
 app.get('/getSFormsByUser', async (req, res) => {
   const { email } = req.query;
@@ -157,25 +159,25 @@ app.post('/createFacultyAdvisor', async (req,res)=> {
 
 app.post('/facultyFormSubmission', async (req, res) => {
   const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
-  console.log(req.body);
+  console.log('Faculty form submission:', req.body);
   try {
-    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
-    console.log("form submitted!")
+    const savedForm = await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("Faculty form submitted successfully! Form ID:", savedForm._id, "Submitted by:", submittedBy);
     res.send('Form submitted');
   } catch (error) {
-    console.log(error);
+    console.log('Faculty form submission error:', error);
     res.status(500).send("Form submission failed");
   }
 });
 app.post('/studentFormSubmission', async (req, res) => {
   const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
-  console.log(req.body);
+  console.log('Student form submission:', req.body);
   try {
-    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
-    console.log("form submitted!")
+    const savedForm = await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    console.log("Student form submitted successfully! Form ID:", savedForm._id, "Submitted by:", submittedBy);
     res.send('Form submitted');
   } catch (error) {
-    console.log(error);
+    console.log('Student form submission error:', error);
     res.status(500).send("Form submission failed");
   }
 });
@@ -234,6 +236,8 @@ app.get('/getAllUsers', async (req, res) => {
 // Unified endpoint for all roles
 app.get('/getFormsForUser', async (req, res) => {
   const { email, role } = req.query;
+  console.log('Getting forms for user:', email, role);
+  
   try {
     if (role === 'admin' || role === 'Admin') {
       // Admin: return all forms
@@ -241,6 +245,7 @@ app.get('/getFormsForUser', async (req, res) => {
         fFormModel.find(),
         sFormModel.find()
       ]);
+      console.log('Admin - Faculty forms:', facultyForms.length, 'Student forms:', studentForms.length);
       res.send([
         ...facultyForms.map(f => ({ ...f.toObject(), owner: 'staff' })),
         ...studentForms.map(s => ({ ...s.toObject(), owner: 'student' }))
@@ -248,12 +253,33 @@ app.get('/getFormsForUser', async (req, res) => {
     } else if (role === 'student' || role === 'Student') {
       // Student: only their forms
       const forms = await sFormModel.find({ submittedBy: email });
+      console.log('Student forms found for', email, ':', forms.length);
       res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
     } else {
       // Staff: only their forms
       const forms = await fFormModel.find({ submittedBy: email });
+      console.log('Staff forms found for', email, ':', forms.length);
       res.send(forms.map(f => ({ ...f.toObject(), owner: 'staff' })));
     }
+  } catch (error) {
+    console.error('Error getting forms for user:', error);
+    res.status(500).send(error);
+  }
+});
+
+// Debug endpoint to see all forms
+app.get('/debug/forms', async (req, res) => {
+  try {
+    const facultyForms = await fFormModel.find();
+    const studentForms = await sFormModel.find();
+    
+    console.log('All faculty forms:', facultyForms.map(f => ({ formNo: f.formNo, to: f.to, submittedBy: f.submittedBy })));
+    console.log('All student forms:', studentForms.map(s => ({ formNo: s.formNo, to: s.to, submittedBy: s.submittedBy })));
+    
+    res.send({
+      facultyForms: facultyForms.map(f => ({ formNo: f.formNo, to: f.to, submittedBy: f.submittedBy, status: f.status })),
+      studentForms: studentForms.map(s => ({ formNo: s.formNo, to: s.to, submittedBy: s.submittedBy, status: s.status }))
+    });
   } catch (error) {
     res.status(500).send(error);
   }
@@ -262,29 +288,112 @@ app.get('/getFormsForUser', async (req, res) => {
 // Endpoint to get received forms for a user
 app.get('/getReceivedFormsForUser', async (req, res) => {
   const { email, role } = req.query;
+  console.log('Getting received forms for:', email, role);
   try {
     // For faculty forms: received if 'to' includes the user's email or role
     const facultyReceived = await fFormModel.find({ to: { $in: [email, role] } });
+    console.log('Faculty forms received:', facultyReceived.length);
 
     // For student forms: received if 'to' includes the user's email or role
     // If sent to HoD or higher, must also be routed through Faculty Advisor
     const studentForms = await sFormModel.find();
+    console.log('Total student forms:', studentForms.length);
     const studentReceived = studentForms.filter(form => {
-      // If the form is sent to HoD or Principal or Manager, it must also include Faculty Advisor
+      // Faculty Advisor should receive ALL student forms
+      if (role === 'FacultyAdvisor') {
+        return true;
+      }
+      // For other roles: received if the user is in the 'to' field (by email or role)
       const toArray = Array.isArray(form.to) ? form.to : [form.to];
-      const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'Manager'].includes(r));
-      const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
-      // If it's to HoD or higher, must also include FacultyAdvisor
-      if (isToHodOrHigher && !includesFacultyAdvisor) return false;
-      // Received if the user is in the 'to' field (by email or role)
       return toArray.includes(email) || toArray.includes(role);
     });
 
-    res.send([
-      ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
-      ...studentReceived.map(s => ({ ...s.toObject(), owner: 'student' }))
-    ]);
+    console.log('Student forms received:', studentReceived.length);
+
+    const result = [
+      ...facultyReceived.map(f => ({ 
+        ...f.toObject(), 
+        owner: 'staff',
+        category: f.submittedBy === email ? 'submitted' : 'received'
+      })),
+      ...studentReceived.map(s => ({ 
+        ...s.toObject(), 
+        owner: 'student',
+        category: s.submittedBy === email ? 'submitted' : 'received'
+      }))
+    ];
+    
+    console.log('Total received forms:', result.length);
+    console.log('Forms breakdown:', {
+      facultySubmitted: facultyReceived.filter(f => f.submittedBy === email).length,
+      facultyReceived: facultyReceived.filter(f => f.submittedBy !== email).length,
+      studentSubmitted: studentReceived.filter(s => s.submittedBy === email).length,
+      studentReceived: studentReceived.filter(s => s.submittedBy !== email).length
+    });
+    res.send(result);
   } catch (error) {
+    console.error('Error getting received forms:', error);
+    res.status(500).send(error);
+  }
+});
+
+// Fixed endpoint to get received forms for a user
+app.get('/getReceivedFormsForUserFixed', async (req, res) => {
+  const { email, role } = req.query;
+  console.log('Getting received forms for:', email, role);
+  
+  try {
+    let facultyReceived = [];
+    let studentReceived = [];
+
+    // For faculty forms: received if 'to' includes the user's email or role
+    facultyReceived = await fFormModel.find({ to: { $in: [email, role] } });
+    console.log('Faculty forms received:', facultyReceived.length);
+
+    // For student forms: received if 'to' includes the user's email or role
+    const studentForms = await sFormModel.find();
+    console.log('Total student forms:', studentForms.length);
+    
+    studentReceived = studentForms.filter(form => {
+      const toArray = Array.isArray(form.to) ? form.to : [form.to];
+      
+      // Check if this user should receive this form
+      const isReceived = toArray.includes(email) || toArray.includes(role);
+      
+      if (isReceived) {
+        console.log('Student form received by', email, ':', form.formNo, 'to:', toArray, 'role:', role);
+      }
+      
+      return isReceived;
+    });
+
+    console.log('Student forms received:', studentReceived.length);
+
+    // Add category field to distinguish submitted vs received
+    const result = [
+      ...facultyReceived.map(f => ({ 
+        ...f.toObject(), 
+        owner: 'staff',
+        category: f.submittedBy === email ? 'submitted' : 'received'
+      })),
+      ...studentReceived.map(s => ({ 
+        ...s.toObject(), 
+        owner: 'student',
+        category: s.submittedBy === email ? 'submitted' : 'received'
+      }))
+    ];
+    
+    console.log('Total received forms:', result.length);
+    console.log('Forms breakdown:', {
+      facultySubmitted: facultyReceived.filter(f => f.submittedBy === email).length,
+      facultyReceived: facultyReceived.filter(f => f.submittedBy !== email).length,
+      studentSubmitted: studentReceived.filter(s => s.submittedBy === email).length,
+      studentReceived: studentReceived.filter(s => s.submittedBy !== email).length
+    });
+    
+    res.send(result);
+  } catch (error) {
+    console.error('Error getting received forms:', error);
     res.status(500).send(error);
   }
 });
@@ -314,6 +423,59 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
     if (!updated) return res.status(404).send('Form not found');
     res.send(updated);
   } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Endpoint to delete a form
+app.delete('/deleteForm', async (req, res) => {
+  const { formId, formType, userEmail, userRole } = req.body;
+  console.log('Deleting form:', formId, formType, 'by user:', userEmail, userRole);
+  
+  try {
+    let model;
+    if (formType === 'student') {
+      model = sFormModel;
+    } else if (formType === 'faculty') {
+      model = fFormModel;
+    } else {
+      return res.status(400).send('Invalid form type');
+    }
+    
+    // First, find the form to check ownership
+    const form = await model.findById(formId);
+    if (!form) {
+      return res.status(404).send('Form not found');
+    }
+    
+    // Authorization checks
+    if (userRole === 'admin' || userRole === 'Admin') {
+      // Admin can delete any form
+      console.log('Admin deleting form:', formId);
+    } else {
+      // Non-admin users can only delete their own forms
+      if (form.submittedBy !== userEmail) {
+        console.log('Unauthorized deletion attempt:', userEmail, 'tried to delete form by:', form.submittedBy);
+        return res.status(403).send('You can only delete your own forms');
+      }
+      
+      // Additional check: only allow deletion of forms with 'awaiting' status
+      if (form.status !== 'awaiting') {
+        console.log('Attempt to delete non-awaiting form:', formId, 'status:', form.status);
+        return res.status(400).send('Only forms with "awaiting" status can be deleted');
+      }
+    }
+    
+    // Proceed with deletion
+    const deleted = await model.findByIdAndDelete(formId);
+    if (!deleted) {
+      return res.status(404).send('Form not found');
+    }
+    
+    console.log('Form deleted successfully:', formId, 'by user:', userEmail);
+    res.send({ message: 'Form deleted successfully', deletedForm: deleted });
+  } catch (error) {
+    console.error('Error deleting form:', error);
     res.status(500).send(error);
   }
 });

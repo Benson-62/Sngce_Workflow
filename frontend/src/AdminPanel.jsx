@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const BUTTON_STYLE = {
   background: 'linear-gradient(90deg, #2563eb 0%, #1e293b 100%)',
@@ -27,6 +28,8 @@ function AdminPanel() {
 
   // Load real users from backend
   const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -39,13 +42,37 @@ function AdminPanel() {
     fetchUsers();
   }, []);
 
-  // Demo: Load submissions and received messages from localStorage (can be replaced with backend)
-  const [submissions, setSubmissions] = useState(
-    JSON.parse(localStorage.getItem('mysubmissions') || '[]')
-  );
-  const [receivedMessages, setReceivedMessages] = useState(
-    JSON.parse(localStorage.getItem('receivedMessages') || '[]')
-  );
+  // Load real forms from backend
+  const [facultyForms, setFacultyForms] = useState([]);
+  const [studentForms, setStudentForms] = useState([]);
+  const [loadingForms, setLoadingForms] = useState(true);
+
+  useEffect(() => {
+    const fetchForms = async () => {
+      try {
+        const [facultyRes, studentRes] = await Promise.all([
+          axios.get('http://localhost:3096/getAllFForms'),
+          axios.get('http://localhost:3096/getAllSForms')
+        ]);
+        
+        const facultyWithType = facultyRes.data.map(form => ({ ...form, type: 'faculty' }));
+        const studentWithType = studentRes.data.map(form => ({ ...form, type: 'student' }));
+        
+        setFacultyForms(facultyWithType);
+        setStudentForms(studentWithType);
+      } catch (err) {
+        console.error('Error fetching forms:', err);
+        setFacultyForms([]);
+        setStudentForms([]);
+      } finally {
+        setLoadingForms(false);
+      }
+    };
+    fetchForms();
+  }, []);
+
+  // Combine all forms for display
+  const allForms = [...facultyForms, ...studentForms];
 
   // User management actions
   const handleDeleteUser = (email) => {
@@ -56,21 +83,37 @@ function AdminPanel() {
     }
   };
 
-  // Submission management actions
-  const handleDeleteSubmission = (id) => {
-    if (window.confirm('Are you sure you want to delete this submission?')) {
-      const updated = submissions.filter(s => s.id !== id);
-      setSubmissions(updated);
-      localStorage.setItem('mysubmissions', JSON.stringify(updated));
-    }
-  };
+  // Form management actions
+  const handleDeleteForm = async (formId, formType) => {
+    if (window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
+      try {
+        // Get user info from localStorage
+        const token = jwtDecode(localStorage.getItem('token'));
+        const userEmail = token.email;
+        const userRole = token.role;
 
-  // Received message management actions
-  const handleDeleteReceived = (id) => {
-    if (window.confirm('Are you sure you want to delete this message?')) {
-      const updated = receivedMessages.filter(m => m.id !== id);
-      setReceivedMessages(updated);
-      localStorage.setItem('receivedMessages', JSON.stringify(updated));
+        await axios.delete('http://localhost:3096/deleteForm', {
+          data: { formId, formType, userEmail, userRole }
+        });
+        
+        // Update local state after successful deletion
+        if (formType === 'faculty') {
+          setFacultyForms(prev => prev.filter(form => form._id !== formId));
+        } else {
+          setStudentForms(prev => prev.filter(form => form._id !== formId));
+        }
+        
+        alert('Form deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting form:', error);
+        if (error.response?.status === 403) {
+          alert('You can only delete your own forms.');
+        } else if (error.response?.status === 400) {
+          alert(error.response.data || 'Only forms with "awaiting" status can be deleted.');
+        } else {
+          alert('Failed to delete form. Please try again.');
+        }
+      }
     }
   };
 
@@ -108,12 +151,12 @@ function AdminPanel() {
                 <p style={{ fontSize: 36, color: textColor, margin: 0 }}>{users.length}</p>
               </div>
               <div className="stat-card" style={{ flex: 1, background: statCardBg, borderRadius: 14, padding: 24, textAlign: 'center', boxShadow: '0 2px 10px #e5e7eb' }}>
-                <h3 style={{ color: accent, fontWeight: 700 }}>Submissions</h3>
-                <p style={{ fontSize: 36, color: textColor, margin: 0 }}>{submissions.length}</p>
+                <h3 style={{ color: accent, fontWeight: 700 }}>Faculty Forms</h3>
+                <p style={{ fontSize: 36, color: textColor, margin: 0 }}>{facultyForms.length}</p>
               </div>
               <div className="stat-card" style={{ flex: 1, background: statCardBg, borderRadius: 14, padding: 24, textAlign: 'center', boxShadow: '0 2px 10px #e5e7eb' }}>
-                <h3 style={{ color: accent, fontWeight: 700 }}>Received</h3>
-                <p style={{ fontSize: 36, color: textColor, margin: 0 }}>{receivedMessages.length}</p>
+                <h3 style={{ color: accent, fontWeight: 700 }}>Student Forms</h3>
+                <p style={{ fontSize: 36, color: textColor, margin: 0 }}>{studentForms.length}</p>
               </div>
             </div>
             <p style={{ fontSize: 18, fontWeight: 500 }}>Welcome to the admin dashboard. Use the navigation above to manage the site.</p>
@@ -151,58 +194,143 @@ function AdminPanel() {
         )}
         {section === 'submissions' && (
           <div style={{ background: cardBg, borderRadius: 12, padding: 24, boxShadow: '0 2px 10px #e5e7eb', marginBottom: 24 }}>
-            <h2 style={{ color: accent, fontWeight: 700 }}>Submissions Overview</h2>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20, color: textColor }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9' }}>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Subject</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Department</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Date</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Owner</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map(sub => (
-                  <tr key={sub.id}>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{sub.subject}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{sub.department}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{sub.date}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{sub.owner}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
-                      <button style={{ ...BUTTON_STYLE, background: 'linear-gradient(90deg, #ef4444 0%, #1e293b 100%)' }} onClick={() => handleDeleteSubmission(sub.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h2 style={{ color: accent, fontWeight: 700 }}>All Forms Management</h2>
+            {loadingForms ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: textColor }}>Loading forms...</div>
+            ) : (
+              <>
+                <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <span style={{ 
+                    background: '#f1f5f9', 
+                    padding: '4px 12px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.9rem',
+                    color: textColor 
+                  }}>
+                    Total Forms: {allForms.length}
+                  </span>
+                  <span style={{ 
+                    background: '#f1f5f9', 
+                    padding: '4px 12px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.9rem',
+                    color: textColor 
+                  }}>
+                    Faculty: {facultyForms.length}
+                  </span>
+                  <span style={{ 
+                    background: '#f1f5f9', 
+                    padding: '4px 12px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.9rem',
+                    color: textColor 
+                  }}>
+                    Student: {studentForms.length}
+                  </span>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20, color: textColor }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9' }}>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Form No</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Type</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Subject</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Department</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Status</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Submitted By</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Date</th>
+                      <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allForms.map(form => (
+                      <tr key={form._id}>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>#{form.formNo}</td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
+                          <span style={{ 
+                            background: form.type === 'faculty' ? '#3b82f6' : '#10b981', 
+                            color: 'white', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '0.8rem' 
+                          }}>
+                            {form.type === 'faculty' ? 'Faculty' : 'Student'}
+                          </span>
+                        </td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{form.subject}</td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{form.department || 'N/A'}</td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
+                          <span style={{ 
+                            background: form.status === 'accepted' ? '#22c55e' : 
+                                       form.status === 'rejected' ? '#ef4444' : 
+                                       form.status === 'forwarded' ? '#3b82f6' : '#fbbf24', 
+                            color: 'white', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '0.8rem' 
+                          }}>
+                            {form.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{form.submittedBy}</td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
+                          {new Date(form.createdAt).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
+                          <button 
+                            style={{ 
+                              ...BUTTON_STYLE, 
+                              background: 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+                              padding: '6px 12px',
+                              fontSize: '0.8rem'
+                            }} 
+                            onClick={() => handleDeleteForm(form._id, form.type)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {allForms.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                    No forms found.
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
         {section === 'received' && (
           <div style={{ background: cardBg, borderRadius: 12, padding: 24, boxShadow: '0 2px 10px #e5e7eb', marginBottom: 24 }}>
-            <h2 style={{ color: accent, fontWeight: 700 }}>Received Messages</h2>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20, color: textColor }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9' }}>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>From</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Subject</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Date</th>
-                  <th style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receivedMessages.map(msg => (
-                  <tr key={msg.id}>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{msg.from || '-'}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{msg.subject}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>{msg.date}</td>
-                    <td style={{ padding: 12, borderBottom: '1px solid #e5e7eb' }}>
-                      <button style={{ ...BUTTON_STYLE, background: 'linear-gradient(90deg, #ef4444 0%, #1e293b 100%)' }} onClick={() => handleDeleteReceived(msg.id)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <h2 style={{ color: accent, fontWeight: 700 }}>Form Analytics</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                <h3 style={{ color: accent, margin: '0 0 0.5rem 0' }}>Total Forms</h3>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: textColor }}>{allForms.length}</p>
+              </div>
+              <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                <h3 style={{ color: accent, margin: '0 0 0.5rem 0' }}>Pending</h3>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: textColor }}>
+                  {allForms.filter(f => f.status === 'awaiting').length}
+                </p>
+              </div>
+              <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                <h3 style={{ color: accent, margin: '0 0 0.5rem 0' }}>Completed</h3>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: textColor }}>
+                  {allForms.filter(f => f.status === 'accepted' || f.status === 'rejected').length}
+                </p>
+              </div>
+              <div style={{ background: '#f1f5f9', padding: '1.5rem', borderRadius: '8px', textAlign: 'center' }}>
+                <h3 style={{ color: accent, margin: '0 0 0.5rem 0' }}>In Progress</h3>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0, color: textColor }}>
+                  {allForms.filter(f => f.status === 'forwarded').length}
+                </p>
+              </div>
+            </div>
+            <p style={{ color: '#888', textAlign: 'center' }}>
+              Use the "Submissions" tab to manage individual forms and delete them if needed.
+            </p>
           </div>
         )}
         {section === 'settings' && (

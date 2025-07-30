@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import { jwtDecode } from "jwt-decode";
 import axios from 'axios';
+import Archive from './Archive';
 
 const statusColors = {
   awaiting: '#fbbf24', // yellow
@@ -14,6 +15,43 @@ const statusColors = {
 };
 
 function RoleDashboard({ userRole, submissions, navigate }) {
+  const handleDeleteForm = async (formId, formType, status) => {
+    // Only allow deletion of forms that are still awaiting
+    if (status !== 'awaiting') {
+      alert('Only forms with "awaiting" status can be deleted. Forms that are being reviewed or completed cannot be deleted.');
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
+      try {
+        // Get user info from localStorage
+        const token = jwtDecode(localStorage.getItem('token'));
+        const userEmail = token.email;
+        const userRole = token.role;
+
+        // Map 'staff' to 'faculty' for backend compatibility
+        const backendFormType = formType === 'staff' ? 'faculty' : formType;
+
+        await axios.delete('http://localhost:3096/deleteForm', {
+          data: { formId, formType: backendFormType, userEmail, userRole }
+        });
+        
+        // Refresh the page to update the data
+        window.location.reload();
+        
+        alert('Form deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting form:', error);
+        if (error.response?.status === 403) {
+          alert('You can only delete your own forms.');
+        } else if (error.response?.status === 400) {
+          alert(error.response.data || 'Only forms with "awaiting" status can be deleted.');
+        } else {
+          alert('Failed to delete form. Please try again.');
+        }
+      }
+    }
+  };
   if (userRole === 'admin' || userRole === 'Admin') {
     // Show all forms for admin
     return (
@@ -57,12 +95,35 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.currentReviewer}</td>
                     <td>{submission.owner}</td>
                     <td>
-                      <button 
-                        className="view-btn"
-                        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                      >
-                        View
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          className="view-btn"
+                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
+                        >
+                          View
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          style={{
+                            background: submission.status === 'awaiting' 
+                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
+                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
+                            fontWeight: '500',
+                            transition: 'background-color 0.2s ease',
+                            opacity: submission.status === 'awaiting' ? 1 : 0.6
+                          }}
+                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
+                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -132,12 +193,35 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
-                      <button 
-                        className="view-btn"
-                        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                      >
-                        View
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          className="view-btn"
+                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
+                        >
+                          View
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          style={{
+                            background: submission.status === 'awaiting' 
+                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
+                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
+                            fontWeight: '500',
+                            transition: 'background-color 0.2s ease',
+                            opacity: submission.status === 'awaiting' ? 1 : 0.6
+                          }}
+                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
+                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -205,12 +289,35 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
-                      <button 
-                        className="view-btn"
-                        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                      >
-                        View
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          className="view-btn"
+                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
+                        >
+                          View
+                        </button>
+                        <button 
+                          className="delete-btn"
+                          style={{
+                            background: submission.status === 'awaiting' 
+                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
+                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '0.8rem',
+                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
+                            fontWeight: '500',
+                            transition: 'background-color 0.2s ease',
+                            opacity: submission.status === 'awaiting' ? 1 : 0.6
+                          }}
+                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
+                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -247,6 +354,7 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [errorReceived, setErrorReceived] = useState('');
   const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
+  const [viewMode, setViewMode] = useState('current'); // 'current' or 'archived'
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -281,6 +389,11 @@ function Dashboard() {
     }
   };
 
+  const handleRefresh = () => {
+    console.log('Manual refresh triggered');
+    window.location.reload();
+  };
+
   useEffect(() => {
       var token = jwtDecode(localStorage.getItem('token'));
       if (!token) {
@@ -290,11 +403,16 @@ function Dashboard() {
       setUserRole(token.role);
       const email = token.email;
       const role = token.role;
+      
+      console.log('Dashboard loaded for user:', email, role);
       const fetchSubmissions = async () => {
         try {
+          console.log('Fetching submissions for:', email, role);
           const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+          console.log('Submissions received:', res.data);
           setSubmissions(res.data || []);
         } catch (err) {
+          console.error('Error fetching submissions:', err);
           setError('Failed to fetch submissions');
         } finally {
           setLoading(false);
@@ -303,8 +421,10 @@ function Dashboard() {
       const fetchReceived = async () => {
         try {
           const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+          console.log('Received forms data:', res.data);
           setReceivedSubmissions(res.data || []);
         } catch (err) {
+          console.error('Error fetching received forms:', err);
           setErrorReceived('Failed to fetch received submissions');
         } finally {
           setLoadingReceived(false);
@@ -321,19 +441,93 @@ function Dashboard() {
   }
   return (
     <div className="dashboard-page">
-      <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
-      <div style={{ marginTop: 48 }}>
-        <h2 style={{ marginBottom: 16 }}>Received Submissions</h2>
+      {/* View Mode Toggle and Refresh */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        gap: '1rem',
+        marginBottom: '2rem',
+        background: 'white',
+        padding: '1rem',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        maxWidth: '500px',
+        margin: '0 auto 2rem auto'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          background: '#f1f5f9', 
+          borderRadius: '8px', 
+          padding: '4px',
+          gap: '4px'
+        }}>
+          <button
+            onClick={() => setViewMode('current')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              background: viewMode === 'current' ? '#3b82f6' : 'transparent',
+              color: viewMode === 'current' ? 'white' : '#64748b',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Current Forms
+          </button>
+          <button
+            onClick={() => setViewMode('archived')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              background: viewMode === 'archived' ? '#3b82f6' : 'transparent',
+              color: viewMode === 'archived' ? 'white' : '#64748b',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Form History
+          </button>
+        </div>
+        <button
+          onClick={handleRefresh}
+          style={{
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '6px',
+            background: '#10b981',
+            color: 'white',
+            cursor: 'pointer',
+            fontWeight: '500',
+            transition: 'all 0.2s ease'
+          }}
+          title="Refresh data"
+        >
+          🔄 Refresh
+        </button>
+      </div>
+
+      {viewMode === 'current' ? (
+        <>
+          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
+          <div style={{ marginTop: 48 }}>
+            <div className="dashboard-header" style={{ marginBottom: 24 }}>
+              <h2 style={{ margin: 0, fontWeight: 700, fontSize: 28}}>Received Submissions</h2>
+            </div>
         {loadingReceived ? (
           <div style={{ padding: 40, textAlign: 'center' }}>Loading received submissions...</div>
         ) : errorReceived ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{errorReceived}</div>
         ) : (
-          <div className="submissions-table" style={{ marginBottom: 48, maxWidth: 1100, marginLeft: 'auto', marginRight: 'auto' }}>
+          <div className="submissions-table" style={{ marginBottom: 48, maxWidth: 1100, marginLeft: 'auto', marginRight: 'auto', borderRadius: 16, boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)', background: '#fff' }}>
             {receivedSubmissions.length === 0 ? (
               <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No received submissions found.</div>
             ) : (
-              <table>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th>Submission No</th>
@@ -387,6 +581,21 @@ function Dashboard() {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ fontSize: '2.5rem', color: '#1e293b', marginBottom: '0.5rem', fontWeight: '700' }}>
+              Form History
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '1.1rem', margin: '0' }}>
+              Completed forms and their final status
+            </p>
+          </div>
+          
+          <Archive />
+        </div>
+      )}
     </div>
   );
 }
