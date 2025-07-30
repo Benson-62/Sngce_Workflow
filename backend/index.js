@@ -42,10 +42,10 @@ console.log(role)
 console.log(department)
   try{
     if(role != 'Principal' || role != 'Manager'){
-      const formVar = await fFormModel.find({to :role, department : department});
+      const forms = await fFormModel.find({to :role, department : department});
       console.log("1")
-      console.log(formVar)
-      res.send(formVar)
+      console.log(forms)
+      res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
     }else{
       const formVar = await fFormModel.find({to : role});
       console.log(formVar)
@@ -63,10 +63,10 @@ console.log(role)
 console.log(department)
   try{
     if(role != 'Principal' || role != 'Manager'){
-      const formVar = await sFormModel.find({to :role, department : department});
+      const forms = await sFormModel.find({to :role, department : department});
       console.log("1")
-      console.log(formVar)
-      res.send(formVar)
+      console.log(forms)
+      res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
     }else{
       const formVar = await sFormModel.find({to : role});
       console.log(formVar)
@@ -80,9 +80,9 @@ console.log(department)
 // Get all Faculty Forms
 app.get('/getAllFForms', async(req,res)=>{
   try{
-    const formVar = await fFormModel.find();
-    console.log(formVar)
-    res.send(formVar)
+    const forms = await fFormModel.find();
+    console.log(forms)
+    res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
   }catch(error){
     console.log(error)
     res.send(error)
@@ -91,9 +91,9 @@ app.get('/getAllFForms', async(req,res)=>{
 // Get all Student Forms
 app.get('/getAllSForms', async(req,res)=>{
   try{
-    const formVar = await sFormModel.find();
-    console.log(formVar)
-    res.send(formVar)
+    const forms = await sFormModel.find();
+    console.log(forms)
+    res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
   }catch(error){
     console.log(error)
     res.send(error)
@@ -104,7 +104,7 @@ app.get('/getSFormsByUser', async (req, res) => {
   const { email } = req.query;
   try {
     const forms = await sFormModel.find({ submittedBy: email });
-    res.send(forms);
+    res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
   } catch (error) {
     console.log(error);
     res.status(500).send(error);
@@ -115,7 +115,7 @@ app.get('/getFFormsByUser', async (req, res) => {
   const { email } = req.query;
   try {
     const forms = await fFormModel.find({ submittedBy: email });
-    res.send(forms);
+    res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
   } catch (error) {
     console.log(error);
     res.status(500).send(error);
@@ -123,20 +123,23 @@ app.get('/getFFormsByUser', async (req, res) => {
 });
 // Get single Student Form by ID
 app.get('/getSFormById/:id', async (req, res) => {
+  console.log(req.params.id)
   try {
     const form = await sFormModel.findById(req.params.id);
     if (!form) return res.status(404).send('Not found');
-    res.send(form);
+    form.map(s=>({...s.toObject(), owner : 'student'}));
+    console.log(res)
   } catch (error) {
     res.status(500).send(error);
   }
 });
 // Get single Faculty Form by ID
 app.get('/getFFormById/:id', async (req, res) => {
+  console.log(req.params.id)
   try {
     const form = await fFormModel.findById(req.params.id);
     if (!form) return res.status(404).send('Not found');
-    res.send(form);
+    res.send(form.map(s => ({ ...s.toObject(), owner: 'faculty' })));
   } catch (error) {
     res.status(500).send(error);
   }
