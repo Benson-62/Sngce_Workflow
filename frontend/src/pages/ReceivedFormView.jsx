@@ -60,22 +60,29 @@ export default function ReceivedFormView() {
   const handleSave = async () => {
     if (!form) return;
     setSaving(true);
+    console.log(form.owner)
     setError('');
     try {
       // Forwarding: add to 'to' array if selected
       let newTo = Array.isArray(form.to) ? [...form.to] : [form.to];
+      let newStatus = form.status;
       if (forwardTo && !newTo.includes(forwardTo)) {
         newTo.push(forwardTo);
+        newStatus = 'forwarded';
       }
-      const formType = form.owner === 'student' ? 'student' : 'faculty';
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      // const formType = form.owner === 'student' ? 'student' : 'faculty';
+      const payload = {
         formId: form._id || form.id,
-        formType,
-        remarks,
+        formType: formType,
+        remarks: remarks,
         to: newTo,
-      });
-      setForm(f => ({ ...f, remarks, to: newTo }));
+        status: newStatus,
+      };
+      // console.log(payload)
+      // await axios.put(`http://localhost:3096/updateFormRemarksStatus`, payload);
+      setForm(f => ({ ...f, remarks, to: newTo, status: newStatus }));
     } catch (err) {
+      console.log(err)
       setError('Failed to update.');
     } finally {
       setSaving(false);

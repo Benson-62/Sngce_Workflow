@@ -156,10 +156,10 @@ app.post('/createFacultyAdvisor', async (req,res)=> {
 
 
 app.post('/facultyFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  const { date, to, subject, others, department, details, attachment , submittedBy, formType} = req.body;
   console.log(req.body);
   try {
-    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy , formType}).save();
     console.log("form submitted!")
     res.send('Form submitted');
   } catch (error) {
@@ -168,10 +168,10 @@ app.post('/facultyFormSubmission', async (req, res) => {
   }
 });
 app.post('/studentFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  const { date, to, subject, others, department, details, attachment , submittedBy , formType} = req.body;
   console.log(req.body);
   try {
-    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy , formType}).save();
     console.log("form submitted!")
     res.send('Form submitted');
   } catch (error) {
@@ -291,8 +291,9 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 
 // Endpoint to update remarks and status for a form
 app.put('/updateFormRemarksStatus', async (req, res) => {
-  const { formId, formType, remarks, status, to } = req.body;
+  const { formId, formType, remarks, status, to, by } = req.body;
   console.log(req.body);
+  console.log(formType)
   try {
     let model;
     if (formType === 'student') {
@@ -302,17 +303,44 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
     } else {
       return res.status(400).send('Invalid form type');
     }
+    console.log(model)
     const updateFields = {};
     if (remarks !== undefined) updateFields.remarks = remarks;
     if (status !== undefined) updateFields.status = status;
     if (to !== undefined) updateFields.to = to;
-    const updated = await model.findByIdAndUpdate(
+
+    // Construct history action string
+    let action = '';
+    if (status === 'forwarded' && Array.isArray(to)) {
+      // Find the last two roles in the 'to' array
+      const last = to[to.length - 1];
+      const prev = to[to.length - 2] || '';
+      action = `${formType} forwarded to ${last.toLowerCase()}`;
+      if (prev) action = `${prev.toLowerCase()} forwarded to ${last.toLowerCase()}`;
+    } else if (status) {
+      action = `${formType} status changed to ${status}`;
+    } else if (remarks) {
+      action = `${formType} remarks updated`;
+    }
+    const historyEntry = {
+      action,
+      by: by || 'system',
+      timestamp: new Date(),
+      remarks: remarks || ''
+    };
+
+    // Update with $push to history
+    const ret = await model.findByIdAndUpdate(
       formId,
-      updateFields,
+      {
+        $set: updateFields,
+        $push: { history: historyEntry }
+      },
       { new: true }
     );
-    if (!updated) return res.status(404).send('Form not found');
-    res.send(updated);
+    console.log(ret)
+    // if (!updated) return res.status(404).send('Form not found');
+    res.send(ret);
   } catch (error) {
     res.status(500).send(error);
   }

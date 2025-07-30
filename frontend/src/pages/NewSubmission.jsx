@@ -127,7 +127,7 @@ function NewSubmission() {
 
   // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
   useEffect(() => {
-    if (userRole === 'Student') {
+    if (userRole === 'student' || userRole === 'Student') {
       const mustIncludeFaculty = formStudent.to.includes('principal') || formStudent.to.includes('hod');
       if (mustIncludeFaculty && !formStudent.to.includes('faculty')) {
         // Only update if 'faculty' is not already the first element
@@ -195,6 +195,7 @@ function NewSubmission() {
         details: formStudent.details,
         submittedBy: String(email),
         attachment: attachment,
+        formType : userRole
       });
       await axios.post('http://localhost:3096/studentFormSubmission', payload, {
         headers: {
@@ -256,7 +257,7 @@ function NewSubmission() {
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
     // Add attachment on second page if present and is image or PDF
-    const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
+    const attachment = userRole === 'student' ? attachmentStudent : attachmentStaff;
     if (attachment) {
       pdf.addPage();
       if (attachment.type.startsWith('image/')) {
@@ -598,7 +599,7 @@ function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView,
   return (
     <div className="submission-outer">
       <h1 className="submission-main-title">Submission and Approval</h1>
-      {showPrintView ? printLetterView : (userRole === 'Student' ? studentForm : staffForm)}
+      {showPrintView ? printLetterView : (userRole === 'student' ? studentForm : staffForm)}
     </div>
   );
 }
