@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-
+import { jwtDecode } from 'jwt-decode';
 const statusLabels = {
   awaiting: 'Awaiting',
   forwarded: 'Forwarded',
@@ -32,8 +32,14 @@ export default function ReceivedFormView() {
   const [forwardTo, setForwardTo] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
+    const token = jwtDecode(localStorage.getItem('token'));
+    if (token){
+      setUserRole(token.role);
+    }
+    
     // Try both student and faculty endpoints
     const fetchForm = async () => {
       setLoading(true);
@@ -57,30 +63,40 @@ export default function ReceivedFormView() {
     fetchForm();
   }, [id]);
 
-  const handleSave = async () => {
+const handleSave = async () => {
     if (!form) return;
     setSaving(true);
     setError('');
     try {
-      // Forwarding: add to 'to' array if selected
       let newTo = Array.isArray(form.to) ? [...form.to] : [form.to];
       if (forwardTo && !newTo.includes(forwardTo)) {
         newTo.push(forwardTo);
       }
+      
       const formType = form.owner === 'student' ? 'student' : 'faculty';
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+
+      // 1. Capture the response from the API call
+      const response = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
         formId: form._id || form.id,
         formType,
         remarks,
         to: newTo,
+        status: 'forwarded',
+        by: userRole,
       });
-      setForm(f => ({ ...f, remarks, to: newTo }));
+
+      // 2. Use the returned data to update your state
+      // This ensures your local state is a perfect match for the database
+      setForm(response.data); 
+
     } catch (err) {
-      setError('Failed to update.');
+      // You can also improve error handling to be more specific
+      const message = err.response?.data?.message || 'Failed to update.';
+      setError(message);
     } finally {
       setSaving(false);
     }
-  };
+};
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
   if (error) return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;

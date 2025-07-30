@@ -209,10 +209,10 @@ app.post('/studentFormSubmission', async (req, res) => {
 });
 
 app.post('/createAccount', async (req, res) => {
-  const { fName, lName, email, password, role } = req.body;
+  const { fName, lName, email, password, role, department } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   try {
-    await logmodel({ fName, lName, email, password: hashedPassword, role }).save();
+    await logmodel({ fName, lName, email, password: hashedPassword, role , department}).save();
     res.send("User added");
   } catch (error) {
     console.log(error);
@@ -317,7 +317,7 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
     // --- 1. Find Received Forms from Faculty/Staff ---
     // For staff forms, we only check if the 'to' field contains the user's role.
     // The more specific checks are only applied to student forms.
-    const facultyQuery = { to: role };
+    const facultyQuery = { to: role, department : department };
     const facultyReceived = await fFormModel.find(facultyQuery);
 
     // --- 2. Find Received Forms from Students ---
@@ -371,33 +371,165 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 
 
 // Endpoint to update remarks and status for a form
+// app.put('/updateFormRemarksStatus', async (req, res) => {
+//   const { formId, formType, remarks, status, to } = req.body;
+//   console.log(req.body);
+//   try {
+//     let model;
+//     if (formType === 'student') {
+//       model = sFormModel;
+//     } else if (formType === 'faculty') {
+//       model = fFormModel;
+//     } else {
+//       return res.status(400).send('Invalid form type');
+//     }
+//     const updateFields = {};
+//     if (remarks !== undefined) updateFields.remarks = remarks;
+//     if (status !== undefined) updateFields.status = status;
+//     if (to !== undefined) updateFields.to = to;
+//     const updated = await model.findByIdAndUpdate(
+//       formId,
+//       updateFields,
+//       { new: true }
+//     );
+//     if (!updated) return res.status(404).send('Form not found');
+//     res.send(updated);
+//   } catch (error) {
+//     res.status(500).send(error);
+//   }
+// });
+
+// app.listen(PORT, () => {
+//   console.log(`Port is up and running at ${PORT}`);
+// });
+
+// app.put('/updateFormRemarksStatus', async (req, res) => {
+//   const { formId, formType, remarks, status, to, by } = req.body;
+//   console.log(formType, remarks, status, to, by);
+//   try {
+//     let model;
+//     if (formType === 'student') {
+//     } else {
+//       return res.status(400).send('Invalid form type');
+//     }
+//     console.log(model)
+//     const updateFields = {};
+//     if (remarks !== undefined) updateFields.remarks = remarks;
+//     if (status !== undefined) updateFields.status = status;
+//     if (to !== undefined) updateFields.to = to;
+
+//     // Construct history action string
+//     let action = '';
+//     if (status === 'forwarded' && Array.isArray(to)) {
+//       // Find the last two roles in the 'to' array
+//       const last = to[to.length - 1];
+//       const prev = to[to.length - 2] || '';
+//       action = `${formType} forwarded to ${last.toLowerCase()}`;
+//       if (prev) action = `${prev.toLowerCase()} forwarded to ${last.toLowerCase()}`;
+//     } else if (status) {
+//       action = `${formType} status changed to ${status}`;
+//     } else if (remarks) {
+//       action = `${formType} remarks updated`;
+//     }
+//     const historyEntry = {
+//       action,
+//       by: by || 'system',
+//       timestamp: new Date(),
+//       remarks: remarks || ''
+//     };
+
+//     // Update with $push to history
+//     const ret = await model.findByIdAndUpdate(
+//       formId,
+//       {
+//         $set: updateFields,
+//         $push: { history: historyEntry }
+//       },
+//       { new: true }
+//     );
+//     console.log(ret)
+//     if (!updated) return res.status(404).send('Form not found');
+//     res.send(ret);
+//   } catch (error) {
+//     res.status(500).send(error);
+//   }
+// });
+
+
 app.put('/updateFormRemarksStatus', async (req, res) => {
-  const { formId, formType, remarks, status, to } = req.body;
-  console.log(req.body);
+  const { formId, formType, remarks, status, to, by } = req.body;
+
   try {
     let model;
+    // --- Correctly assign the model based on formType ---
     if (formType === 'student') {
       model = sFormModel;
     } else if (formType === 'faculty') {
       model = fFormModel;
     } else {
-      return res.status(400).send('Invalid form type');
+      // This now correctly handles any other invalid type
+      return res.status(400).send({ message: `Invalid form type: ${formType}` });
     }
+
     const updateFields = {};
     if (remarks !== undefined) updateFields.remarks = remarks;
     if (status !== undefined) updateFields.status = status;
     if (to !== undefined) updateFields.to = to;
-    const updated = await model.findByIdAndUpdate(
+
+    // Construct history action string
+    let action = '';
+    if (status === 'forwarded' && Array.isArray(to) && to.length > 1) {
+      const last = to[to.length - 1];
+      const prev = to[to.length - 2];
+      action = `${prev.toLowerCase()} forwarded to ${last.toLowerCase()}`;
+    } else if (status) {
+      action = `${formType} status changed to ${status}`;
+    } else if (remarks) {
+      action = `Remarks updated`;
+    }
+
+    // --- FIX: Check if there's any actual update to perform ---
+    // An update is only meaningful if we are changing a field OR if there's a descriptive action for the history.
+    if (Object.keys(updateFields).length === 0 && !action) {
+      return res.status(400).send({ message: 'No update data provided. Please provide remarks, status, or a new recipient.' });
+    }
+
+    const historyEntry = {
+      action,
+      by: by || 'system', // Default to 'system' if 'by' is not provided
+      timestamp: new Date(),
+      remarks: remarks || ''
+    };
+
+    // --- Add more detailed logging for debugging ---
+    console.log(`Attempting to update formId: ${formId}`);
+    console.log('Fields to $set:', JSON.stringify(updateFields, null, 2));
+    console.log('Entry to $push to history:', JSON.stringify(historyEntry, null, 2));
+
+    // Update with $set to update fields and $push to add to history
+    const updatedForm = await model.findByIdAndUpdate(
       formId,
-      updateFields,
-      { new: true }
+      {
+        $set: updateFields,
+        $push: { history: historyEntry }
+      },
+      { new: true, runValidators: true } // This returns the updated document and runs schema validators
     );
-    if (!updated) return res.status(404).send('Form not found');
-    res.send(updated);
+    console.log(updatedForm)
+    // Check if the form was actually found and updated
+    if (!updatedForm) {
+      return res.status(404).send({ message: 'Form not found with the provided formId.' });
+    }
+
+    console.log('Update successful. Returning updated form.');
+    res.status(200).send(updatedForm);
+    
   } catch (error) {
-    res.status(500).send(error);
+    console.error("Error in /updateFormRemarksStatus:", error);
+    res.status(500).send({ message: 'An internal server error occurred.', error: error.message });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`Port is up and running at ${PORT}`);

@@ -262,26 +262,26 @@ function Dashboard() {
   };
 
   // Handler for save
-  const handleSave = async (form) => {
-    const formId = form._id || form.id;
-    const formType = form.owner === 'student' ? 'student' : 'faculty';
-    const { remarks, status } = editRows[formId] || {};
-    setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
-    try {
-      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
-        formId,
-        formType,
-        remarks,
-        status,
-      });
-      // Optimistically update the receivedSubmissions state
-      setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
-    } catch (err) {
-      alert('Failed to update.');
-    } finally {
-      setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
-    }
-  };
+  // const handleSave = async (form) => {
+  //   const formId = form._id || form.id;
+  //   const formType = form.owner === 'student' ? 'student' : 'faculty';
+  //   const { remarks, status } = editRows[formId] || {};
+  //   setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
+  //   try {
+  //     const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+  //       formId,
+  //       formType,
+  //       remarks,
+  //       status,
+  //     });
+  //     // Optimistically update the receivedSubmissions state
+  //     setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
+  //   } catch (err) {
+  //     alert('Failed to update.');
+  //   } finally {
+  //     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
+  //   }
+  // };
 
   useEffect(() => {
   const token = jwtDecode(localStorage.getItem('token'));
@@ -293,7 +293,7 @@ function Dashboard() {
   const email = token.email;
   const role = token.role;
   const department = token.department;
-
+  // console.log(token)
   // 1. Modify fetchReceived to accept year and div as arguments
   const fetchReceived = async (year, div) => {
     // Use the passed-in year and div. Provide default empty strings if they are undefined.

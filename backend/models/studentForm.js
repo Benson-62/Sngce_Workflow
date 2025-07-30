@@ -49,6 +49,29 @@ const studentFormSchema = new mongoose.Schema({
     div : {
         type: String,
     },
+    history: [
+    {
+        action: {
+            type: String, // e.g., r'submitted', 'forwarded to principal', 'accepted by principal'
+        },
+        by: {
+            type: String, // could be name, email, or role
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        },
+        remarks: {
+            type : String
+        }
+    }
+    ],
+    currentHandler: {
+        type: String // Optional: Who currently has the form (e.g., 'hod@college.edu')
+    },
+    remarks: {
+        type: String
+    }
 }, { timestamps: true });
 
 studentFormSchema.pre("save", async function (next) {
