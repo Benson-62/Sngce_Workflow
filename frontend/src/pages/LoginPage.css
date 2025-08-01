@@ -79,4 +79,88 @@
 
 .register-link span:hover {
   color: #764ba2;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .login-page {
+    padding: 15px;
+  }
+  
+  .login-container {
+    padding: 30px 25px;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+  
+  .login-container h2 {
+    font-size: 24px;
+    margin-bottom: 25px;
+  }
+  
+  .login-form {
+    gap: 18px;
+  }
+  
+  .form-group input {
+    padding: 14px 16px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .login-btn {
+    padding: 14px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 10px;
+  }
+  
+  .login-container {
+    padding: 25px 20px;
+    border-radius: 6px;
+  }
+  
+  .login-container h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  
+  .login-form {
+    gap: 15px;
+  }
+  
+  .form-group input {
+    padding: 12px 14px;
+  }
+  
+  .login-btn {
+    padding: 12px;
+  }
+  
+  .register-link {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .login-container {
+    padding: 20px 15px;
+  }
+  
+  .login-container h2 {
+    font-size: 20px;
+  }
+  
+  .form-group input {
+    padding: 10px 12px;
+  }
+  
+  .login-btn {
+    padding: 10px;
+    font-size: 15px;
+  }
 } 

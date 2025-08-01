@@ -7,6 +7,7 @@ function Navbar() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Listen for changes to localStorage (e.g., login/logout in other tabs) and custom authChanged event
@@ -32,13 +33,22 @@ function Navbar() {
     localStorage.removeItem('userName');
     setIsLoggedIn(false);
     setUserRole(null);
+    setIsMobileMenuOpen(false);
     navigate('/login');
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
   };
 
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <Link to="/dashboard" className="brand-link">
+        <Link to="/dashboard" className="brand-link" onClick={closeMobileMenu}>
           <img 
             src="/src/assets/sngce.jpg" 
             alt="Workflow Logo" 
@@ -50,9 +60,20 @@ function Navbar() {
           <span className="brand-text">Workflow</span>
         </Link>
       </div>
-      <div className="nav-links">
-        <Link to="/dashboard">Dashboard</Link>
-        <Link to="/submission/new">New Submission</Link>
+      
+      <button 
+        className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
+        onClick={toggleMobileMenu}
+        aria-label="Toggle mobile menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      
+      <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
+        <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+        <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         ) : null 

@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import './MySubmission.css';
 
 function MySubmission() {
   const navigate = useNavigate();
@@ -67,88 +68,80 @@ function MySubmission() {
   };
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div>;
+    return <div className="loading">Loading submissions...</div>;
   }
   if (error) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;
+    return <div className="error">{error}</div>;
   }
   if (!submissions.length && !receivedMessages.length) {
-    return <div style={{ padding: 40, textAlign: 'center' }}>No submissions or received messages found.</div>;
+    return <div className="no-data">No submissions or received messages found.</div>;
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '40px auto', background: '#fff', borderRadius: 10, boxShadow: '0 2px 10px #eee', padding: 32 }}>
-      <h2 style={{ textAlign: 'center', marginBottom: 32 }}>My Submissions</h2>
-      {submissions.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 40 }}>
-          <thead>
-            <tr style={{ background: '#f8f9fa' }}>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Subject</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Department</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Date</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map(sub => (
-              <tr key={sub._id}>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.subject}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.department}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{sub.createdAt ? new Date(sub.createdAt).toLocaleString() : (sub.date ? new Date(sub.date).toLocaleDateString() : '')}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                  <button onClick={() => alert('View/Print not implemented in demo')}>View/Print</button>
-                </td>
+    <div className="my-submission-container">
+      <div className="my-submission-header">
+        <h2>My Submissions</h2>
+      </div>
+              {submissions.length > 0 && (
+          <table className="my-submission-table">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Department</th>
+                <th>Date</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {submissions.map(sub => (
+                <tr key={sub._id}>
+                  <td>{sub.subject}</td>
+                  <td>{sub.department}</td>
+                  <td>{sub.createdAt ? new Date(sub.createdAt).toLocaleString() : (sub.date ? new Date(sub.date).toLocaleDateString() : '')}</td>
+                  <td>
+                    <button className="view-print-btn" onClick={() => alert('View/Print not implemented in demo')}>View/Print</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-      <h2 style={{ textAlign: 'center', marginBottom: 32 }}>Received Messages</h2>
-      {receivedMessages.length === 0 ? (
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>No received messages found.</div>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f8f9fa' }}>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>From</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Subject</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Date</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Remarks</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Action Taken</th>
-              <th style={{ padding: 12, borderBottom: '1px solid #eee' }}>Save</th>
-            </tr>
-          </thead>
-          <tbody>
-            {receivedMessages.map(msg => (
-              <tr key={msg.id}>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{msg.from || '-'}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{msg.subject}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>{msg.date}</td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                  <input
-                    type="text"
-                    value={remarks[msg.id]?.remarks || ''}
-                    onChange={e => handleInputChange(msg.id, 'remarks', e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                  <input
-                    type="text"
-                    value={remarks[msg.id]?.action || ''}
-                    onChange={e => handleInputChange(msg.id, 'action', e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </td>
-                <td style={{ padding: 12, borderBottom: '1px solid #eee' }}>
-                  <button onClick={() => handleSave(msg.id)}>Save</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div className="received-messages-section">
+        <h3>Received Messages</h3>
+        {receivedMessages.length === 0 ? (
+          <div className="no-data">No received messages found.</div>
+        ) : (
+          receivedMessages.map(msg => (
+            <div key={msg.id} className="message-card">
+              <div className="message-header">
+                <div className="message-subject">{msg.subject}</div>
+                <div className="message-date">{msg.date}</div>
+              </div>
+              <div className="message-content">
+                <strong>From:</strong> {msg.from || '-'}
+              </div>
+              <div className="remarks-section">
+                <h4>Remarks:</h4>
+                <textarea
+                  className="remarks-input"
+                  value={remarks[msg.id]?.remarks || ''}
+                  onChange={e => handleInputChange(msg.id, 'remarks', e.target.value)}
+                  placeholder="Add your remarks here..."
+                />
+                <h4>Action Taken:</h4>
+                <textarea
+                  className="remarks-input"
+                  value={remarks[msg.id]?.action || ''}
+                  onChange={e => handleInputChange(msg.id, 'action', e.target.value)}
+                  placeholder="Describe action taken..."
+                />
+                <button className="save-btn" onClick={() => handleSave(msg.id)}>Save</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

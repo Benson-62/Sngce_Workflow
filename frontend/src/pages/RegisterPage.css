@@ -86,4 +86,91 @@
 
 .login-link span:hover {
   color: #764ba2;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .register-page {
+    padding: 15px;
+  }
+  
+  .register-container {
+    padding: 30px 25px;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+  
+  .register-container h2 {
+    font-size: 24px;
+    margin-bottom: 25px;
+  }
+  
+  .register-form {
+    gap: 18px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 14px 16px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .register-btn {
+    padding: 14px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    padding: 10px;
+  }
+  
+  .register-container {
+    padding: 25px 20px;
+    border-radius: 6px;
+  }
+  
+  .register-container h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  
+  .register-form {
+    gap: 15px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 12px 14px;
+  }
+  
+  .register-btn {
+    padding: 12px;
+  }
+  
+  .login-link {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .register-container {
+    padding: 20px 15px;
+  }
+  
+  .register-container h2 {
+    font-size: 20px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 10px 12px;
+  }
+  
+  .register-btn {
+    padding: 10px;
+    font-size: 15px;
+  }
 } 
