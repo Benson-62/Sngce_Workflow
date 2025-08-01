@@ -12,6 +12,7 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange
 };
 
 function PrincipalPage() {

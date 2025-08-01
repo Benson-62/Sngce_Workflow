@@ -300,7 +300,7 @@ app.get('/getFormsForUser', async (req, res) => {
  */
 app.get('/getReceivedFormsForUser', async (req, res) => {
   const { role, department, year, div } = req.query;
-  console.log(role, department, year, div);
+  // console.log(role, department, year, div);
 
   // --- Input Validation ---
   if (!role) {
@@ -629,6 +629,86 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
     
   } catch (error) {
     console.error("Error in /updateFormRemarksStatus:", error);
+    res.status(500).send({ message: 'An internal server error occurred.', error: error.message });
+  }
+});
+
+// New endpoint for updating form content (for forms with 'edit' status)
+app.put('/updateFormContent', async (req, res) => {
+  const { formId, formType, to, subject, details, attachment, submittedBy, resubmit } = req.body;
+
+  try {
+    let model;
+    // Determine the model based on formType or try to find the form in both models
+    if (formType === 'student') {
+      model = sFormModel;
+    } else if (formType === 'faculty') {
+      model = fFormModel;
+    } else {
+      // If formType is not provided, try to find the form in both models
+      const studentForm = await sFormModel.findById(formId);
+      if (studentForm) {
+        model = sFormModel;
+      } else {
+        const facultyForm = await fFormModel.findById(formId);
+        if (facultyForm) {
+          model = fFormModel;
+        } else {
+          return res.status(404).send({ message: 'Form not found in either student or faculty collections.' });
+        }
+      }
+    }
+
+    // First, check if the form exists and has 'edit' status
+    const existingForm = await model.findById(formId);
+    if (!existingForm) {
+      return res.status(404).send({ message: 'Form not found.' });
+    }
+
+    if (existingForm.status !== 'edit') {
+      return res.status(403).send({ message: 'Form can only be edited when status is "edit".' });
+    }
+
+    // Check if the user is the original submitter
+    if (existingForm.submittedBy !== submittedBy) {
+      return res.status(403).send({ message: 'Only the original submitter can edit this form.' });
+    }
+
+    // Prepare update fields
+    const updateFields = {};
+    if (to !== undefined) updateFields.to = to;
+    if (subject !== undefined) updateFields.subject = subject;
+    if (details !== undefined) updateFields.details = details;
+    if (attachment !== undefined) updateFields.attachment = attachment;
+
+    // If resubmitting, change status back to 'awaiting'
+    if (resubmit) {
+      updateFields.status = 'awaiting';
+    }
+
+    // Add history entry for the edit
+    const historyEntry = {
+      action: resubmit ? 'Form resubmitted by submitter' : 'Form content updated by submitter',
+      by: submittedBy,
+      timestamp: new Date(),
+      remarks: resubmit ? 'Form was edited and resubmitted for review' : 'Form was edited'
+    };
+
+    // Update the form
+    const updatedForm = await model.findByIdAndUpdate(
+      formId,
+      {
+        $set: updateFields,
+        $push: { history: historyEntry }
+      },
+      { new: true, runValidators: true }
+    );
+
+    console.log('Form content update successful.');
+    res.status(200).send(updatedForm);
+    
+  } catch (error) {
+    console.error("Error in /updateFormContent:", error);
     res.status(500).send({ message: 'An internal server error occurred.', error: error.message });
   }
 });

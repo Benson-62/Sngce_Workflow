@@ -12,6 +12,7 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange
 };
 
 function RoleDashboard({ userRole, submissions, navigate }) {
@@ -102,6 +103,24 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         >
                           View
                         </button>
+                        {submission.status === 'edit' && (
+                          <button 
+                            className="edit-btn"
+                            onClick={() => navigate(`/submission/${submission._id || submission.id}/edit`)}
+                            style={{
+                              background: '#f59e0b',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '6px 12px',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.3s ease'
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button 
                           className="delete-btn"
                           style={{
@@ -200,6 +219,24 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         >
                           View
                         </button>
+                        {submission.status === 'edit' && (
+                          <button 
+                            className="edit-btn"
+                            onClick={() => navigate(`/submission/${submission._id || submission.id}/edit`)}
+                            style={{
+                              background: '#f59e0b',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '6px 12px',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.3s ease'
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button 
                           className="delete-btn"
                           style={{
@@ -296,6 +333,24 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         >
                           View
                         </button>
+                        {submission.status === 'edit' && (
+                          <button 
+                            className="edit-btn"
+                            onClick={() => navigate(`/submission/${submission._id || submission.id}/edit`)}
+                            style={{
+                              background: '#f59e0b',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '6px 12px',
+                              fontSize: '14px',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.3s ease'
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button 
                           className="delete-btn"
                           style={{

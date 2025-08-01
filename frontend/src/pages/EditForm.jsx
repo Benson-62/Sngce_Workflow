@@ -1,4 +1,4 @@
-// frontend/src/pages/NewSubmission.jsx
+// frontend/src/pages/EditForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import './NewSubmission.css';
 import jsPDF from 'jspdf';
@@ -7,7 +7,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import AttachmentViewer from '../components/AttachmentViewer';
@@ -78,21 +78,20 @@ const DEPARTMENT_OPTIONS = [
   { name: 'Master of Computer Applications', short: 'MCA' }
 ];
 
-// function getToken() {
-//   return localStorage.getItem('token');
-//   console.log(jwtDecode(token))
-// }
-
-function NewSubmission() {
+function EditForm() {
+  const { id } = useParams();
   const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({
     ...initialStateStudent,
-    subject: '', // will store the value of the dropdown
+    subject: '',
   });
   const [formStaff, setFormStaff] = useState({
     ...initialStateStaff,
-    subject: '', // will store the value of the dropdown
+    subject: '',
   });
+  const [originalForm, setOriginalForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const today = new Date().toISOString().slice(0, 10);
   const submissionNo = '001/2025';
   const formRef = useRef();
@@ -101,7 +100,6 @@ function NewSubmission() {
   const [attachmentStudent, setAttachmentStudent] = useState(null);
   const [attachmentStaff, setAttachmentStaff] = useState(null);
   const navigate = useNavigate();
-  // Removed email state
 
   useEffect(() => {
     const token = jwtDecode(localStorage.getItem('token'));
@@ -116,134 +114,180 @@ function NewSubmission() {
       navigate('/login');
     }
   }, [navigate]);
-  // File conversion
-  const toBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file); // converts to base64 with MIME prefix
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
-  });
-};
 
-  // Student: If Principal or HoD is selected, ensure Faculty Advisor is included
+  // Fetch the form data to edit
   useEffect(() => {
-    if (userRole === 'Student') {
-      const mustIncludeFaculty = formStudent.to.includes('Principal') || formStudent.to.includes('hod');
-      if (mustIncludeFaculty && !formStudent.to.includes('Faculty')) {
-        // Only update if 'faculty' is not already the first element
-        if (formStudent.to[0] !== 'faculty') {
-          setFormStudent((prev) => ({ ...prev, to: ['faculty', ...prev.to.filter(v => v !== 'faculty')] }));
+    const fetchForm = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+        setOriginalForm(res.data);
+        populateFormData(res.data, 'student');
+      } catch (err1) {
+        try {
+          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+          setOriginalForm(res.data);
+          populateFormData(res.data, 'faculty');
+        } catch (err2) {
+          setError('Form not found or failed to load.');
         }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchForm();
+  }, [id]);
+
+  const populateFormData = (formData, formType) => {
+    if (formType === 'student') {
+      setFormStudent({
+        subject: formData.subject || '',
+        department: formData.department || '',
+        to: Array.isArray(formData.to) ? formData.to : [formData.to],
+        toOthers: formData.others || '',
+        purpose: [],
+        purposeOthers: '',
+        details: formData.details || '',
+        remarks: '',
+      });
+      if (formData.attachment) {
+        setAttachmentStudent({
+          name: formData.attachment.filename,
+          type: formData.attachment.mimetype,
+          data: formData.attachment.file
+        });
+      }
+    } else {
+      setFormStaff({
+        subject: formData.subject || '',
+        department: formData.department || '',
+        to: Array.isArray(formData.to) ? formData.to : [formData.to],
+        toOthers: formData.others || '',
+        purpose: [],
+        purposeOthers: '',
+        details: formData.details || '',
+        remarks: '',
+        actions: [],
+      });
+      if (formData.attachment) {
+        setAttachmentStaff({
+          name: formData.attachment.filename,
+          type: formData.attachment.mimetype,
+          data: formData.attachment.file
+        });
       }
     }
-    // eslint-disable-next-line
-  }, [formStudent.to, userRole]);
+  };
+
+  // File conversion
+  const toBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   const handleChangeStudent = (e) => {
     setFormStudent({ ...formStudent, [e.target.name]: e.target.value });
   };
+
   const handleChangeStaff = (e) => {
     setFormStaff({ ...formStaff, [e.target.name]: e.target.value });
-  };
-
-  const handleCheckboxStudent = (e, group) => {
-    const { value, checked } = e.target;
-    setFormStudent((prev) => {
-      let arr = prev[group];
-      if (group === 'to' && value === 'Faculty') {
-        if ((prev.to.includes('principal') || prev.to.includes('hod')) && !checked) {
-          return prev; // Don't allow unchecking
-        }
-      }
-      return {
-        ...prev,
-        [group]: checked ? [...arr, value] : arr.filter((v) => v !== value),
-      };
-    });
-  };
-  const handleCheckboxStaff = (e, group) => {
-    const { value, checked } = e.target;
-    setFormStaff((prev) => {
-      let arr = prev[group];
-      return {
-        ...prev,
-        [group]: checked ? [...arr, value] : arr.filter((v) => v !== value),
-      };
-    });
   };
 
   const handleSubmitStudent = async (e) => {
     e.preventDefault();
     let attachment = null;
-    if (attachmentStudent) {
+    if (attachmentStudent && attachmentStudent instanceof File) {
       const encodedFile = await toBase64(attachmentStudent);
       attachment = {
-        file: encodedFile.split(',')[1], // Base64 content only
+        file: encodedFile.split(',')[1],
+        filename: attachmentStudent.name,
+        mimetype: attachmentStudent.type,
+      };
+    } else if (attachmentStudent && attachmentStudent.data) {
+      // Keep existing attachment
+      attachment = {
+        file: attachmentStudent.data,
         filename: attachmentStudent.name,
         mimetype: attachmentStudent.type,
       };
     }
+
     try {
       const token = jwtDecode(localStorage.getItem('token'));
       const email = token.email;
       const year = token.year;
       const div = token.div;
-      const payload = JSON.stringify({
-        date: new Date().toISOString().slice(0, 10),
-        to: formStudent.to, // already an array
+      
+      const updateData = {
+        formId: id,
+        formType: 'student',
+        submittedBy: email,
+        to: formStudent.to,
         subject: formStudent.subject,
+        details: formStudent.details,
         others: formStudent.toOthers,
         department: formStudent.department,
-        details: formStudent.details,
-        submittedBy: String(email),
         attachment: attachment,
-        year : year,
-        div : div
-      });
-      await axios.post('http://localhost:3096/studentFormSubmission', payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        year: year,
+        div: div,
+        resubmit: true // This will change status back to 'awaiting'
+      };
+
+      const response = await axios.put('http://localhost:3096/updateFormContent', updateData);
+      alert('Form updated and resubmitted successfully!');
       navigate('/dashboard');
     } catch (error) {
-      alert('Submission failed. Please try again.');
+      alert('Update failed. Please try again.');
       console.error(error);
     }
   };
+
   const handleSubmitStaff = async (e) => {
     e.preventDefault();
     let attachment = null;
-    if (attachmentStaff) {
+    if (attachmentStaff && attachmentStaff instanceof File) {
       const encodedFile = await toBase64(attachmentStaff);
       attachment = {
-        file: encodedFile.split(',')[1], // Base64 content only
+        file: encodedFile.split(',')[1],
+        filename: attachmentStaff.name,
+        mimetype: attachmentStaff.type,
+      };
+    } else if (attachmentStaff && attachmentStaff.data) {
+      // Keep existing attachment
+      attachment = {
+        file: attachmentStaff.data,
         filename: attachmentStaff.name,
         mimetype: attachmentStaff.type,
       };
     }
+
     try {
       const token = jwtDecode(localStorage.getItem('token'));
       const email = token.email;
-      const payload = JSON.stringify({
-        date: new Date().toISOString().slice(0, 10),
-        to: formStaff.to, // already an array
+      
+      const updateData = {
+        formId: id,
+        formType: 'faculty',
+        submittedBy: email,
+        to: formStaff.to,
         subject: formStaff.subject,
+        details: formStaff.details,
         others: formStaff.toOthers,
         department: formStaff.department,
-        details: formStaff.details,
-        submittedBy: String(email),
         attachment: attachment,
-      });
-      await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+        resubmit: true // This will change status back to 'awaiting'
+      };
+
+      const response = await axios.put('http://localhost:3096/updateFormContent', updateData);
+      alert('Form updated and resubmitted successfully!');
       navigate('/dashboard');
     } catch (error) {
-      alert('Submission failed. Please try again.');
+      alert('Update failed. Please try again.');
       console.error(error);
     }
   };
@@ -251,7 +295,7 @@ function NewSubmission() {
   // Print as a letter, not as a form
   const handlePrintPDF = async () => {
     setShowPrintView(true);
-    await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for print view to render
+    await new Promise((resolve) => setTimeout(resolve, 100));
     const input = printLetterRef.current;
     const canvas = await html2canvas(input, { scale: 2 });
     const imgData = canvas.toDataURL('image/png');
@@ -260,19 +304,16 @@ function NewSubmission() {
     const height = (canvas.height * width) / canvas.width;
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
-    // Add attachment on second page if present and is image or PDF
     const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
     if (attachment) {
       pdf.addPage();
-      if (attachment.type.startsWith('image/')) {
-        // Render image on second page
+      if (attachment.type && attachment.type.startsWith('image/')) {
         const imgURL = URL.createObjectURL(attachment);
         const img = new window.Image();
         img.src = imgURL;
         await new Promise((resolve) => {
           img.onload = resolve;
         });
-        // Fit image to page
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         let imgWidth = img.width;
@@ -283,7 +324,6 @@ function NewSubmission() {
         pdf.addImage(img, img.type === 'image/png' ? 'PNG' : 'JPEG', (pageWidth - imgWidth) / 2, (pageHeight - imgHeight) / 2, imgWidth, imgHeight);
         URL.revokeObjectURL(imgURL);
       } else if (attachment.type === 'application/pdf') {
-        // Show a placeholder message for PDF attachments
         pdf.setFontSize(16);
         pdf.text('Attachment: PDF file is attached separately.', 20, 40);
       } else {
@@ -295,7 +335,10 @@ function NewSubmission() {
     setShowPrintView(false);
   };
 
-  // --- Student Form ---
+  const handleStaffToChange = (event, value) => {
+    setFormStaff((prev) => ({ ...prev, to: value ? [value.value] : [] }));
+  };
+
   const handleStudentToChange = (event, value) => {
     let newTo = value ? [value.value] : [];
     if ((newTo.includes('principal') || newTo.includes('hod')) && !newTo.includes('faculty')) {
@@ -303,22 +346,10 @@ function NewSubmission() {
     }
     setFormStudent((prev) => ({ ...prev, to: newTo }));
   };
-  // --- Staff Form ---
-  const handleStaffToChange = (event, value) => {
-    setFormStaff((prev) => ({ ...prev, to: value ? [value.value] : [] }));
-  };
-  const handleStudentPurposeChange = (event, value) => {
-    setFormStudent((prev) => ({ ...prev, purpose: value ? [value.value] : [] }));
-  };
-  const handleStaffPurposeChange = (event, value) => {
-    setFormStaff((prev) => ({ ...prev, purpose: value ? [value.value] : [] }));
-  };
-  const icon = <CheckBoxOutlineBlank fontSize="small" />;
-  const checkedIcon = <CheckBox fontSize="small" />;
 
   const handleAttachmentStudent = (e) => {
     const file = e.target.files[0] || null;
-    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
+    if (file && file.size > 10 * 1024 * 1024) {
       alert('File size exceeds 10 MB limit. Please choose a smaller file.');
       e.target.value = '';
       setAttachmentStudent(null);
@@ -326,9 +357,10 @@ function NewSubmission() {
     }
     setAttachmentStudent(file);
   };
+
   const handleAttachmentStaff = (e) => {
     const file = e.target.files[0] || null;
-    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
+    if (file && file.size > 10 * 1024 * 1024) {
       alert('File size exceeds 10 MB limit. Please choose a smaller file.');
       e.target.value = '';
       setAttachmentStaff(null);
@@ -337,17 +369,69 @@ function NewSubmission() {
     setAttachmentStaff(file);
   };
 
+  // Helper functions
+  const getDeptShort = (name) => {
+    const found = DEPARTMENT_OPTIONS.find((d) => d.name === name);
+    return found ? found.short : '';
+  };
+
+  const getDeptLong = (short) => {
+    const found = DEPARTMENT_OPTIONS.find((d) => d.short === short);
+    return found ? `${found.name} (${found.short})` : short;
+  };
+
+  const getRecipientLabels = (toArr, toOthers, isStudent) => {
+    const options = isStudent ? TO_OPTIONS_STUDENT : TO_OPTIONS_STAFF;
+    const labels = toArr.map(val => {
+      const found = options.find(opt => opt.value === val);
+      return found ? found.label : val;
+    });
+    if (toOthers && toOthers.trim()) labels.push(toOthers);
+    return labels.join(', ');
+  };
+
+  const getPurposeLabels = (purposeArr, purposeOthers) => {
+    const labels = purposeArr.map(val => {
+      const found = PURPOSE_OPTIONS.find(opt => opt.value === val);
+      return found ? found.label : val;
+    });
+    if (purposeOthers && purposeOthers.trim()) labels.push(purposeOthers);
+    return labels.join(', ');
+  };
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;
+  }
+
+  if (!originalForm) {
+    return <div style={{ padding: 40, textAlign: 'center' }}>Form not found.</div>;
+  }
+
+  // Check if user can edit this form
+  const token = jwtDecode(localStorage.getItem('token'));
+  const canEdit = originalForm.status === 'edit' && originalForm.submittedBy === token.email;
+
+  if (!canEdit) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>
+      You can only edit forms with 'edit' status that you submitted.
+    </div>;
+  }
+
   const studentForm = (
     <form className="submission-card" onSubmit={handleSubmitStudent} ref={formRef}>
-      <h2 className="form-title">SUBMISSION Student </h2>
+      <h2 className="form-title">EDIT SUBMISSION - Student</h2>
       <div className="form-meta-row">
         <div>
           <label>No:</label>
-          <input type="text" value={submissionNo} readOnly />
+          <input type="text" value={originalForm.formNo || originalForm._id} readOnly />
         </div>
         <div>
           <label>Date:</label>
-          <input type="date" value={today} readOnly />
+          <input type="date" value={originalForm.date || today} readOnly />
         </div>
       </div>
       <div className="form-row">
@@ -380,13 +464,22 @@ function NewSubmission() {
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
         <div className="checkboxes" style={{ width: '100%' }}>
-          <input
-            type="text"
-            value="Faculty Advisor"
-            disabled
-            className="long-input"
+          <Autocomplete
+            options={TO_OPTIONS_STUDENT}
+            getOptionLabel={(option) => option.label}
+            value={TO_OPTIONS_STUDENT.find(opt => formStudent.to.includes(opt.value)) || null}
+            onChange={handleStudentToChange}
+            renderOption={(props, option) => (
+              <li {...props}>
+                {option.label}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} variant="outlined" label="To" placeholder="Select recipient" />
+            )}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            style={{ width: '100%' }}
           />
-          <input type="hidden" name="to" value="faculty" />
         </div>
       </div>
       <div className="form-row">
@@ -414,43 +507,37 @@ function NewSubmission() {
         <label>Details of Submission:</label>
         <textarea name="details" value={formStudent.details} onChange={handleChangeStudent} rows={3} className="long-input" required />
       </div>
-      <div className="form-row">
-        <label>Attachment</label>
-        <input type="file" onChange={handleAttachmentStudent} />
-        {attachmentStudent && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
-              Selected attachment:
+              <div className="form-row">
+          <label>Attachment</label>
+          <input type="file" onChange={handleAttachmentStudent} />
+          {attachmentStudent && attachmentStudent.data && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
+                Current attachment:
+              </div>
+              <AttachmentViewer attachment={attachmentStudent} />
             </div>
-            <AttachmentViewer attachment={{
-              filename: attachmentStudent.name,
-              mimetype: attachmentStudent.type,
-              file: attachmentStudent
-            }} />
-          </div>
-        )}
-      </div>
-      {/* Remarks removed for students */}
+          )}
+        </div>
       <div className="form-row form-btn-row">
-        <button type="submit" className="submit-btn">Submit</button>
-        <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
+        <button type="submit" className="submit-btn">Update & Resubmit</button>
+        <button type="button" className="cancel-btn" onClick={() => navigate('/dashboard')}>Cancel</button>
         <button type="button" className="print-btn" onClick={handlePrintPDF}>Print as PDF</button>
       </div>
     </form>
   );
 
-  // --- Staff Form ---
   const staffForm = (
     <form className="submission-card" onSubmit={handleSubmitStaff} ref={formRef}>
-      <h2 className="form-title">SUBMISSION</h2>
+      <h2 className="form-title">EDIT SUBMISSION</h2>
       <div className="form-meta-row">
         <div>
           <label>No:</label>
-          <input type="text" value={submissionNo} readOnly />
+          <input type="text" value={originalForm.formNo || originalForm._id} readOnly />
         </div>
         <div>
           <label>Date:</label>
-          <input type="date" value={today} readOnly />
+          <input type="date" value={originalForm.date || today} readOnly />
         </div>
       </div>
       <div className="form-row">
@@ -526,70 +613,32 @@ function NewSubmission() {
         <label>Details of Submission:</label>
         <textarea name="details" value={formStaff.details} onChange={handleChangeStaff} rows={3} className="long-input" required />
       </div>
-      <div className="form-row">
-        <label>Attachment</label>
-        <input type="file" onChange={handleAttachmentStaff} />
-        {attachmentStaff && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
-              Selected attachment:
+              <div className="form-row">
+          <label>Attachment</label>
+          <input type="file" onChange={handleAttachmentStaff} />
+          {attachmentStaff && attachmentStaff.data && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
+                Current attachment:
+              </div>
+              <AttachmentViewer attachment={attachmentStaff} />
             </div>
-            <AttachmentViewer attachment={{
-              filename: attachmentStaff.name,
-              mimetype: attachmentStaff.type,
-              file: attachmentStaff
-            }} />
-          </div>
-        )}
-      </div>
-      {/* Remarks removed for staff */}
+          )}
+        </div>
       <div className="form-row form-btn-row">
-        <button type="submit" className="submit-btn">Submit</button>
-        <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
+        <button type="submit" className="submit-btn">Update & Resubmit</button>
+        <button type="button" className="cancel-btn" onClick={() => navigate('/dashboard')}>Cancel</button>
         <button type="button" className="print-btn" onClick={handlePrintPDF}>Print as PDF</button>
       </div>
     </form>
   );
 
-  // Helper to get department short form
-  const getDeptShort = (name) => {
-    const found = DEPARTMENT_OPTIONS.find((d) => d.name === name);
-    return found ? found.short : '';
-  };
-
-  // Helper to get department long name from short
-  const getDeptLong = (short) => {
-    const found = DEPARTMENT_OPTIONS.find((d) => d.short === short);
-    return found ? `${found.name} (${found.short})` : short;
-  };
-
-  // Helper to get recipient labels
-  const getRecipientLabels = (toArr, toOthers, isStudent) => {
-    const options = isStudent ? TO_OPTIONS_STUDENT : TO_OPTIONS_STAFF;
-    const labels = toArr.map(val => {
-      const found = options.find(opt => opt.value === val);
-      return found ? found.label : val;
-    });
-    if (toOthers && toOthers.trim()) labels.push(toOthers);
-    return labels.join(', ');
-  };
-
-  // Helper to get purpose labels
-  const getPurposeLabels = (purposeArr, purposeOthers) => {
-    const labels = purposeArr.map(val => {
-      const found = PURPOSE_OPTIONS.find(opt => opt.value === val);
-      return found ? found.label : val;
-    });
-    if (purposeOthers && purposeOthers.trim()) labels.push(purposeOthers);
-    return labels.join(', ');
-  };
-
   // Print view as a letter
   const printLetterView = (
     <div className="print-letter-view" ref={printLetterRef} style={{ padding: 40, fontFamily: 'serif', color: '#222', background: '#fff', minHeight: '100vh', width: 700, margin: '0 auto' }}>
       <div style={{ textAlign: 'right', marginBottom: 32 }}>
-        <div>Date: {today}</div>
-        <div>No: {submissionNo}</div>
+        <div>Date: {originalForm.date || today}</div>
+        <div>No: {originalForm.formNo || originalForm._id}</div>
       </div>
       <div style={{ marginBottom: 24 }}>
         <div>To,</div>
@@ -605,7 +654,6 @@ function NewSubmission() {
         <div style={{ marginTop: 16, marginLeft: 32 }}>
           {userRole === 'Student' ? formStudent.details : formStaff.details}
         </div>
-        {/* Remarks removed for staff */}
         {(userRole === 'Student' ? attachmentStudent : attachmentStaff) && (
           <div style={{ marginTop: 16, marginLeft: 32 }}>
             <b>Attachment:</b> {(userRole === 'Student' ? attachmentStudent : attachmentStaff).name}
@@ -618,18 +666,12 @@ function NewSubmission() {
     </div>
   );
 
-function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView, showPrintView }) {
-  if (showPrintView) return printLetterView;
-  if (userRole === 'Student') return studentForm;
-  return staffForm;
-}
-
   return (
     <div className="submission-outer">
-      <h1 className="submission-main-title">Submission and Approval</h1>
+      <h1 className="submission-main-title">Edit Submission</h1>
       {showPrintView ? printLetterView : (userRole === 'Student' ? studentForm : staffForm)}
     </div>
   );
 }
 
-export default NewSubmission; 
+export default EditForm; 
