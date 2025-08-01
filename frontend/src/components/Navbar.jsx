@@ -72,8 +72,18 @@ function Navbar() {
       </button>
       
       <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
-        <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
-        <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
+        {userRole === 'Principal' ? (
+          <>
+            <Link to="/principal" onClick={closeMobileMenu}>Principal Dashboard</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+            {(userRole === 'Student' || userRole === 'Faculty' || userRole === 'staff') && (
+              <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
+            )}
+          </>
+        )}
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         ) : null 

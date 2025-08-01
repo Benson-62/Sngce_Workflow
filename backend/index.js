@@ -456,8 +456,111 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 // });
 
 
+// Endpoint to get archived forms for a user
+app.get('/getArchivedForms', async (req, res) => {
+  const { email, role } = req.query;
+  
+  try {
+    let archivedForms = [];
+    
+    if (role === 'admin' || role === 'Admin') {
+      // Admin: return all completed forms (accepted/rejected)
+      const [facultyForms, studentForms] = await Promise.all([
+        fFormModel.find({ status: { $in: ['accepted', 'rejected'] } }),
+        sFormModel.find({ status: { $in: ['accepted', 'rejected'] } })
+      ]);
+      
+      archivedForms = [
+        ...facultyForms.map(f => ({ 
+          ...f.toObject(), 
+          owner: 'staff',
+          type: 'faculty',
+          category: 'received'
+        })),
+        ...studentForms.map(s => ({ 
+          ...s.toObject(), 
+          owner: 'student',
+          type: 'student',
+          category: 'received'
+        }))
+      ];
+    } else if (role === 'student' || role === 'Student') {
+      // Student: only their completed forms
+      const forms = await sFormModel.find({ 
+        submittedBy: email,
+        status: { $in: ['accepted', 'rejected'] }
+      });
+      archivedForms = forms.map(s => ({ 
+        ...s.toObject(), 
+        owner: 'student',
+        type: 'student',
+        category: 'submitted'
+      }));
+    } else if (role === 'Principal') {
+      // Principal: forms received by them that are completed
+      const [facultyForms, studentForms] = await Promise.all([
+        fFormModel.find({ 
+          to: role,
+          status: { $in: ['accepted', 'rejected'] }
+        }),
+        sFormModel.find({ 
+          to: { $in: [role] },
+          status: { $in: ['accepted', 'rejected'] }
+        })
+      ]);
+      
+      archivedForms = [
+        ...facultyForms.map(f => ({ 
+          ...f.toObject(), 
+          owner: 'staff',
+          type: 'faculty',
+          category: 'received'
+        })),
+        ...studentForms.map(s => ({ 
+          ...s.toObject(), 
+          owner: 'student',
+          type: 'student',
+          category: 'received'
+        }))
+      ];
+    } else {
+      // Other staff roles: their completed forms and forms they received that are completed
+      const [submittedForms, receivedForms] = await Promise.all([
+        fFormModel.find({ 
+          submittedBy: email,
+          status: { $in: ['accepted', 'rejected'] }
+        }),
+        fFormModel.find({ 
+          to: role,
+          status: { $in: ['accepted', 'rejected'] }
+        })
+      ]);
+      
+      archivedForms = [
+        ...submittedForms.map(f => ({ 
+          ...f.toObject(), 
+          owner: 'staff',
+          type: 'faculty',
+          category: 'submitted'
+        })),
+        ...receivedForms.map(f => ({ 
+          ...f.toObject(), 
+          owner: 'staff',
+          type: 'faculty',
+          category: 'received'
+        }))
+      ];
+    }
+    
+    res.status(200).send(archivedForms);
+  } catch (error) {
+    console.error("Error in /getArchivedForms:", error);
+    res.status(500).send({ message: 'An error occurred while fetching archived forms.', error: error.message });
+  }
+});
+
 app.put('/updateFormRemarksStatus', async (req, res) => {
-  const { formId, formType, remarks, status, to, by } = req.body;
+  const { formId, formType,userRole, remarks, status, to, by } = req.body;
 
   try {
     let model;
@@ -483,7 +586,7 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
       const prev = to[to.length - 2];
       action = `${prev.toLowerCase()} forwarded to ${last.toLowerCase()}`;
     } else if (status) {
-      action = `${formType} status changed to ${status}`;
+      action = `${userRole} status changed to ${status}`;
     } else if (remarks) {
       action = `Remarks updated`;
     }

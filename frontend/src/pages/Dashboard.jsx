@@ -272,7 +272,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* New column for status dot */}
+                  <th>Status Dot</th>
                 </tr>
               </thead>
               <tbody>
@@ -400,6 +400,13 @@ function Dashboard() {
         navigate('/login');
         return;
       }
+      
+      // Redirect Principal users to the Principal page
+      if (token.role === 'Principal') {
+        navigate('/principal');
+        return;
+      }
+      
       setUserRole(token.role);
       const email = token.email;
       const role = token.role;
@@ -420,7 +427,24 @@ function Dashboard() {
       };
       const fetchReceived = async () => {
         try {
-          const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+          // Extract additional parameters from token for FacultyAdvisor
+          const department = token.department;
+          const year = token.year;
+          const div = token.div;
+          
+          let url = `http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`;
+          
+          // Add required parameters for FacultyAdvisor role
+          if (role === 'FacultyAdvisor') {
+            if (department) url += `&department=${encodeURIComponent(department)}`;
+            if (year) url += `&year=${encodeURIComponent(year)}`;
+            if (div) url += `&div=${encodeURIComponent(div)}`;
+          } else if (role === 'HOD' && department) {
+            // Add department for HOD role
+            url += `&department=${encodeURIComponent(department)}`;
+          }
+          
+          const res = await axios.get(url);
           console.log('Received forms data:', res.data);
           setReceivedSubmissions(res.data || []);
         } catch (err) {
