@@ -7,7 +7,6 @@ function Navbar() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Listen for changes to localStorage (e.g., login/logout in other tabs) and custom authChanged event
@@ -33,22 +32,13 @@ function Navbar() {
     localStorage.removeItem('userName');
     setIsLoggedIn(false);
     setUserRole(null);
-    setIsMobileMenuOpen(false);
     navigate('/login');
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
   };
 
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <Link to="/dashboard" className="brand-link" onClick={closeMobileMenu}>
+        <Link to="/dashboard" className="brand-link">
           <img 
             src="/src/assets/sngce.jpg" 
             alt="Workflow Logo" 
@@ -60,28 +50,16 @@ function Navbar() {
           <span className="brand-text">Workflow</span>
         </Link>
       </div>
-      
-      <button 
-        className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
-        onClick={toggleMobileMenu}
-        aria-label="Toggle mobile menu"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
-      
-      <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
-        {userRole === 'Principal' ? (
+      <div className="nav-links">
+        <Link to="/dashboard">Dashboard</Link>
+        <Link to="/ProfilePage">Profile</Link>
+
+        <Link to="/submission/new">New Submission</Link>
+        {userRole === 'admin' && (
           <>
-            <Link to="/principal" onClick={closeMobileMenu}>Principal Dashboard</Link>
-          </>
-        ) : (
-          <>
-            <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
-            {(userRole === 'Student' || userRole === 'Faculty' || userRole === 'staff') && (
-              <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
-            )}
+            <Link to="/admin">Admin</Link>
+            <Link to="/admin/users">Users</Link>
+            <Link to="/admin/logs">Logs</Link>
           </>
         )}
         {isLoggedIn ? (
