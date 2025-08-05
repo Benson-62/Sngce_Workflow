@@ -1,7 +1,6 @@
 // frontend/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from "jwt-decode";
 import './LoginPage.css';
 
 function detectRole(email) {
@@ -59,20 +58,8 @@ function LoginPage() {
       const data = await response.json();
       localStorage.setItem('token', data.token);
       localStorage.setItem('userName', `${data.fName} ${data.lName}`);
-      
-      // Decode token to get user role and redirect accordingly
-      const token = jwtDecode(data.token);
-      localStorage.setItem('userRole', token.role);
-      localStorage.setItem('userEmail', token.email);
-      
       window.dispatchEvent(new Event('authChanged'));
-      
-      // Redirect based on role
-      if (token.role === 'Principal') {
-        navigate('/principal');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/dashboard');
     } catch (err) {
       setError('Network error');
     }

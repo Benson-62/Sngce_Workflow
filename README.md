@@ -28,7 +28,6 @@ A full-stack application for managing submission and approval workflows with use
 - Submission forms with attachments
 - Approval, return, and forward actions
 - Dashboard views for each role
-- **Principal Dashboard**: Dedicated page for Principal role to review and manage all received forms
 - Logs, notifications, and more 
 
 

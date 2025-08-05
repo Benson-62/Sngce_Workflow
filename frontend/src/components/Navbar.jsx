@@ -50,6 +50,7 @@ function Navbar() {
           <span className="brand-text">Workflow</span>
         </Link>
       </div>
+<<<<<<< HEAD
       <div className="nav-links">
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/ProfilePage">Profile</Link>
@@ -62,6 +63,22 @@ function Navbar() {
             <Link to="/admin/logs">Logs</Link>
           </>
         )}
+=======
+      
+      <button 
+        className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
+        onClick={toggleMobileMenu}
+        aria-label="Toggle mobile menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      
+      <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
+        <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+        <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
+>>>>>>> parent of 7eab1cc (-principal page)
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         ) : null 
