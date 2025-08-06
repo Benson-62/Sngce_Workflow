@@ -272,7 +272,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* New column for status dot */}
+                  <th>Status</th>{/* New column for status dot */}
                 </tr>
               </thead>
               <tbody>
@@ -355,6 +355,9 @@ function Dashboard() {
   const [errorReceived, setErrorReceived] = useState('');
   const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
   const [viewMode, setViewMode] = useState('current'); // 'current' or 'archived'
+  const [year, setYear] = useState('');
+  const [div, setDiv] = useState('');
+
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -395,12 +398,6 @@ function Dashboard() {
   };
 
   useEffect(() => {
-<<<<<<< Updated upstream
-      var token = jwtDecode(localStorage.getItem('token'));
-      if (!token) {
-        navigate('/login');
-        return;
-=======
   const token = jwtDecode(localStorage.getItem('token'));
   if (!token) {
     navigate('/login');
@@ -410,12 +407,9 @@ function Dashboard() {
   const email = token.email;
   const role = token.role;
   const department = token.department;
-  // 1. Modify fetchReceived to accept year and div as arguments
-  const fetchReceived = async (year, div) => {
-    // Use the passed-in year and div. Provide default empty strings if they are undefined.
-    const yearToFetch = year || '';
-    const divToFetch = div || '';
 
+  // Function for FA to fetch forms with year and div
+  const fetchReceivedFA = async (yearToFetch, divToFetch) => {
     try {
       const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(yearToFetch)}&div=${encodeURIComponent(divToFetch)}`);
       console.log(res)
@@ -427,27 +421,44 @@ function Dashboard() {
     }
   };
 
+  // Function for other roles to fetch forms without year and div
+  const fetchReceived = async () => {
+
+    try {
+      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}`);
+      console.log(res)
+      setReceivedSubmissions(res.data || []);
+    } catch (err) {
+      setErrorReceived('Failed to fetch received submissions');
+    } finally {
+      setLoadingReceived(false);
+    }
+  };
+
   const fetchFA = async () => {
     try {
+      console.log(email, department)
       const res = await axios.get(`http://localhost:3096/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
-      
+      console.log('Faculty Advisor data:', res.data);
       if (res.data && res.data.length > 0) {
         const yearFromAPI = res.data[0].year;
         const divFromAPI = res.data[0].div;
-        
+        console.log("LOOK AT THIS",yearFromAPI,divFromAPI)
+
         setYear(yearFromAPI);
         setDiv(divFromAPI);
 
-        // 2. THE FIX: Call fetchReceived from here with the NEW data
-        fetchReceived(yearFromAPI, divFromAPI);
+        // Call FA specific fetch for Faculty Advisors
+        fetchReceivedFA(yearFromAPI, divFromAPI);
       } else {
         // Handle case where FA has no assignments
-        fetchReceived(); // Call with no args, so it fetches with empty year/div
->>>>>>> Stashed changes
+        fetchReceived(); // Use the regular fetch for non-FA users
       }
-      setUserRole(token.role);
-      const email = token.email;
-      const role = token.role;
+    } catch (err) {
+      console.error('Error fetching faculty advisor:', err);
+      setErrorReceived('Failed to fetch faculty advisor');
+    }
+  };
       
       console.log('Dashboard loaded for user:', email, role);
       const fetchSubmissions = async () => {
@@ -463,20 +474,23 @@ function Dashboard() {
           setLoading(false);
         }
       };
-      const fetchReceived = async () => {
-        try {
-          const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-          console.log('Received forms data:', res.data);
-          setReceivedSubmissions(res.data || []);
-        } catch (err) {
-          console.error('Error fetching received forms:', err);
-          setErrorReceived('Failed to fetch received submissions');
-        } finally {
-          setLoadingReceived(false);
-        }
-      };
+      // const fetchReceived = async () => {
+      //   try {
+      //     const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+      //     console.log('Received forms data:', res.data);
+      //     setReceivedSubmissions(res.data || []);
+      //   } catch (err) {
+      //     console.error('Error fetching received forms:', err);
+      //     setErrorReceived('Failed to fetch received submissions');
+      //   } finally {
+      //     setLoadingReceived(false);
+      //   }
+      // };
+      fetchFA();
       fetchSubmissions();
-      fetchReceived();
+      if (role != "FacultyAdvisor" && role != "facultyadvisor"){// Only fetch received forms for non-FA users
+        fetchReceived();
+      }
     }, [navigate]);
   if (loading) {
     return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
