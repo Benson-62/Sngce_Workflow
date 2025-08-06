@@ -24,6 +24,7 @@ function SubmissionActions({ submission, navigate, onStatusChange, onDelete, cur
   
   return (
     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Only show View and Delete in actions */}
       <button 
         className="view-btn"
         onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
@@ -40,53 +41,6 @@ function SubmissionActions({ submission, navigate, onStatusChange, onDelete, cur
       >
         View
       </button>
-      
-      {/* Only show status dropdown to valid receivers */}
-      {canChangeStatus ? (
-        <select
-          style={{
-            padding: '4px 6px',
-            borderRadius: '4px',
-            border: '1px solid #d1d5db',
-            fontSize: '0.75rem',
-            background: 'white',
-            cursor: 'pointer',
-            minWidth: '80px'
-          }}
-          value={submission.status || 'awaiting'}
-          onChange={(e) => onStatusChange(submission._id || submission.id, submission.owner, e.target.value)}
-          title="Change status"
-        >
-          <option value="awaiting">Awaiting</option>
-          <option value="forwarded">Forwarded</option>
-          <option value="accepted">Accepted</option>
-          <option value="rejected">Rejected</option>
-          <option value="approved">Approved</option>
-        </select>
-      ) : (
-        <span 
-          style={{
-            padding: '4px 6px',
-            borderRadius: '4px',
-            border: '1px solid #e5e7eb',
-            fontSize: '0.75rem',
-            background: '#f9fafb',
-            color: '#6b7280',
-            minWidth: '80px',
-            textAlign: 'center'
-          }}
-          title={
-            isSender 
-              ? "You cannot change status of your own forms" 
-              : (currentUser?.role === 'admin' || currentUser?.role === 'Admin')
-                ? "Admins can view and delete forms but cannot change status"
-                : "You can only change status of forms sent to you"
-          }
-        >
-          {submission.status || 'awaiting'}
-        </span>
-      )}
-      
       <button 
         className="delete-btn"
         style={{
