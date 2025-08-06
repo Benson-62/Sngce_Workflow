@@ -14,7 +14,218 @@ const statusColors = {
   approved: '#22c55e', // green
 };
 
+// Actions component for better organization
+function SubmissionActions({ submission, navigate, onStatusChange, onDelete, currentUser, isValidReceiver }) {
+  // Check if current user is the sender of this form
+  const isSender = submission.submittedBy === currentUser?.email;
+  
+  // Check if current user can change status (is a valid receiver and not sender)
+  const canChangeStatus = !isSender && isValidReceiver(submission);
+  
+  return (
+    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <button 
+        className="view-btn"
+        onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
+        style={{
+          padding: '4px 8px',
+          fontSize: '0.75rem',
+          borderRadius: '4px',
+          border: 'none',
+          background: '#3b82f6',
+          color: 'white',
+          cursor: 'pointer',
+          fontWeight: '500'
+        }}
+      >
+        View
+      </button>
+      
+      {/* Only show status dropdown to valid receivers */}
+      {canChangeStatus ? (
+        <select
+          style={{
+            padding: '4px 6px',
+            borderRadius: '4px',
+            border: '1px solid #d1d5db',
+            fontSize: '0.75rem',
+            background: 'white',
+            cursor: 'pointer',
+            minWidth: '80px'
+          }}
+          value={submission.status || 'awaiting'}
+          onChange={(e) => onStatusChange(submission._id || submission.id, submission.owner, e.target.value)}
+          title="Change status"
+        >
+          <option value="awaiting">Awaiting</option>
+          <option value="forwarded">Forwarded</option>
+          <option value="accepted">Accepted</option>
+          <option value="rejected">Rejected</option>
+          <option value="approved">Approved</option>
+        </select>
+      ) : (
+        <span 
+          style={{
+            padding: '4px 6px',
+            borderRadius: '4px',
+            border: '1px solid #e5e7eb',
+            fontSize: '0.75rem',
+            background: '#f9fafb',
+            color: '#6b7280',
+            minWidth: '80px',
+            textAlign: 'center'
+          }}
+          title={
+            isSender 
+              ? "You cannot change status of your own forms" 
+              : (currentUser?.role === 'admin' || currentUser?.role === 'Admin')
+                ? "Admins can view and delete forms but cannot change status"
+                : "You can only change status of forms sent to you"
+          }
+        >
+          {submission.status || 'awaiting'}
+        </span>
+      )}
+      
+      <button 
+        className="delete-btn"
+        style={{
+          background: submission.status === 'awaiting' 
+            ? '#ef4444' 
+            : '#9ca3af',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          padding: '4px 8px',
+          fontSize: '0.75rem',
+          cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
+          fontWeight: '500',
+          opacity: submission.status === 'awaiting' ? 1 : 0.6
+        }}
+        onClick={() => onDelete(submission._id, submission.owner, submission.status)}
+        title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
+      >
+        Del
+      </button>
+    </div>
+  );
+}
+
 function RoleDashboard({ userRole, submissions, navigate }) {
+  // Get current user info for authorization checks
+  const getCurrentUserInfo = () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const decoded = jwtDecode(token);
+        return {
+          email: decoded.email,
+          role: decoded.role,
+          department: decoded.department,
+          year: decoded.year,
+          div: decoded.div
+        };
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error);
+    }
+    return null;
+  };
+  
+  const currentUser = getCurrentUserInfo();
+  const currentUserEmail = currentUser?.email;
+
+  // Check if current user is a valid receiver for a form
+  const isValidReceiver = (submission) => {
+    if (!currentUser || !submission) return false;
+    
+    // Admin can view and delete forms but CANNOT change status
+    if (currentUser.role === 'admin' || currentUser.role === 'Admin') {
+      return false;
+    }
+    
+    // Students cannot change status of any forms (they only submit)
+    if (currentUser.role === 'Student' || currentUser.role === 'student') {
+      return false;
+    }
+    
+    // Principal can change status of forms sent to them
+    if (currentUser.role === 'Principal' || currentUser.role === 'principal') {
+      const toArray = Array.isArray(submission.to) ? submission.to : [submission.to];
+      return toArray.includes('Principal') || toArray.includes('principal');
+    }
+    
+    // For other roles, check if they are in the "to" field and meet criteria
+    const toArray = Array.isArray(submission.to) ? submission.to : [submission.to];
+    
+    // Check if user's role is in the "to" array
+    if (!toArray.includes(currentUser.role)) {
+      return false;
+    }
+    
+    // Additional checks based on role
+    switch (currentUser.role) {
+      case 'HOD':
+        // HOD can only change status of forms in their department
+        return submission.department === currentUser.department;
+        
+      case 'FacultyAdvisor':
+        // Faculty Advisor can only change status of forms in their department, year, and division
+        return submission.department === currentUser.department && 
+               submission.year == currentUser.year && 
+               submission.div === currentUser.div;
+               
+      case 'Faculty':
+        // Faculty can change status of forms sent to them in their department
+        return submission.department === currentUser.department;
+        
+      default:
+        // For other roles, just check if they're in the "to" field
+        return true;
+    }
+  };
+
+  const handleStatusChange = async (formId, formType, newStatus) => {
+    const submission = submissions.find(s => (s._id || s.id) === formId);
+    
+    if (!submission) {
+      alert('Form not found.');
+      return;
+    }
+    
+    // Check if user is the sender
+    if (submission.submittedBy === currentUserEmail) {
+      alert('You cannot change the status of your own form. Only reviewers can change form status.');
+      return;
+    }
+    
+    // Check if user is a valid receiver of this form
+    if (!isValidReceiver(submission)) {
+      alert('You can only change the status of forms that were sent to you for review.');
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to change status to "${newStatus}"?`)) {
+      try {
+        const token = jwtDecode(localStorage.getItem('token'));
+        const backendFormType = formType === 'staff' ? 'faculty' : formType;
+        
+        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+          formId,
+          formType: backendFormType,
+          status: newStatus,
+          by: token.role,
+        });
+        
+        // Refresh the page to show updated data
+        window.location.reload();
+      } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Failed to update status. Please try again.');
+      }
+    }
+  };
+
   const handleDeleteForm = async (formId, formType, status) => {
     // Only allow deletion of forms that are still awaiting
     if (status !== 'awaiting') {
@@ -43,9 +254,9 @@ function RoleDashboard({ userRole, submissions, navigate }) {
       } catch (error) {
         console.error('Error deleting form:', error);
         if (error.response?.status === 403) {
-          alert('You can only delete your own forms.');
+          alert('You can only delete forms you submitted or received.');
         } else if (error.response?.status === 400) {
-          alert(error.response.data || 'Only forms with "awaiting" status can be deleted.');
+          alert(error.response.data?.message || 'Only forms with "awaiting" status can be deleted.');
         } else {
           alert('Failed to delete form. Please try again.');
         }
@@ -75,7 +286,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Current Reviewer</th>
                   <th>Owner</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* Status dot */}
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,35 +306,14 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.currentReviewer}</td>
                     <td>{submission.owner}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="view-btn"
-                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                        >
-                          View
-                        </button>
-                        <button 
-                          className="delete-btn"
-                          style={{
-                            background: submission.status === 'awaiting' 
-                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
-                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 12px',
-                            fontSize: '0.8rem',
-                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
-                            fontWeight: '500',
-                            transition: 'background-color 0.2s ease',
-                            opacity: submission.status === 'awaiting' ? 1 : 0.6
-                          }}
-                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
-                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <SubmissionActions 
+                        submission={submission}
+                        navigate={navigate}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDeleteForm}
+                        currentUser={currentUser}
+                        isValidReceiver={isValidReceiver}
+                      />
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -176,7 +366,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* New column for status dot */}
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -193,35 +383,14 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="view-btn"
-                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                        >
-                          View
-                        </button>
-                        <button 
-                          className="delete-btn"
-                          style={{
-                            background: submission.status === 'awaiting' 
-                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
-                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 12px',
-                            fontSize: '0.8rem',
-                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
-                            fontWeight: '500',
-                            transition: 'background-color 0.2s ease',
-                            opacity: submission.status === 'awaiting' ? 1 : 0.6
-                          }}
-                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
-                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <SubmissionActions 
+                        submission={submission}
+                        navigate={navigate}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDeleteForm}
+                        currentUser={currentUser}
+                        isValidReceiver={isValidReceiver}
+                      />
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -272,7 +441,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                   <th>Date</th>
                   <th>Current Reviewer</th>
                   <th>Actions</th>
-                  <th>Status</th> {/* New column for status dot */}
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -289,35 +458,14 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                     <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                     <td>{submission.currentReviewer}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="view-btn"
-                          onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
-                        >
-                          View
-                        </button>
-                        <button 
-                          className="delete-btn"
-                          style={{
-                            background: submission.status === 'awaiting' 
-                              ? 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)' 
-                              : 'linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            padding: '6px 12px',
-                            fontSize: '0.8rem',
-                            cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
-                            fontWeight: '500',
-                            transition: 'background-color 0.2s ease',
-                            opacity: submission.status === 'awaiting' ? 1 : 0.6
-                          }}
-                          onClick={() => handleDeleteForm(submission._id, submission.owner, submission.status)}
-                          title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <SubmissionActions 
+                        submission={submission}
+                        navigate={navigate}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDeleteForm}
+                        currentUser={currentUser}
+                        isValidReceiver={isValidReceiver}
+                      />
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <span
@@ -355,6 +503,7 @@ function Dashboard() {
   const [errorReceived, setErrorReceived] = useState('');
   const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
   const [viewMode, setViewMode] = useState('current'); // 'current' or 'archived'
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -391,6 +540,7 @@ function Dashboard() {
 
   const handleRefresh = () => {
     console.log('Manual refresh triggered');
+    setLastUpdateTime(Date.now());
     window.location.reload();
   };
 
@@ -400,6 +550,19 @@ function Dashboard() {
         navigate('/login');
         return;
       }
+      
+      // Redirect Principal users to their dedicated panel
+      if (token.role === 'Principal' || token.role === 'principal') {
+        navigate('/principal');
+        return;
+      }
+      
+      // Redirect Admin users to their dedicated panel
+      if (token.role === 'Admin' || token.role === 'admin') {
+        navigate('/admin');
+        return;
+      }
+      
       setUserRole(token.role);
       const email = token.email;
       const role = token.role;
@@ -420,7 +583,21 @@ function Dashboard() {
       };
       const fetchReceived = async () => {
         try {
-          const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+          // Build query parameters based on role requirements
+          let url = `http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
+          
+          if (token.department) {
+            url += `&department=${encodeURIComponent(token.department)}`;
+          }
+          if (token.year) {
+            url += `&year=${encodeURIComponent(token.year)}`;
+          }
+          if (token.div) {
+            url += `&div=${encodeURIComponent(token.div)}`;
+          }
+          
+          console.log('Fetching received forms with URL:', url);
+          const res = await axios.get(url);
           console.log('Received forms data:', res.data);
           setReceivedSubmissions(res.data || []);
         } catch (err) {
@@ -432,6 +609,20 @@ function Dashboard() {
       };
       fetchSubmissions();
       fetchReceived();
+      
+      // Set up auto-refresh every 30 seconds for real-time updates
+      const refreshInterval = setInterval(() => {
+        // Only refresh if the page is visible to avoid unnecessary API calls
+        if (document.visibilityState === 'visible') {
+          console.log('Auto-refreshing dashboard data...');
+          fetchSubmissions();
+          fetchReceived();
+          setLastUpdateTime(Date.now());
+        }
+      }, 30000); // 30 seconds
+      
+      // Cleanup interval on unmount
+      return () => clearInterval(refreshInterval);
     }, [navigate]);
   if (loading) {
     return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
@@ -493,22 +684,33 @@ function Dashboard() {
             Form History
           </button>
         </div>
-        <button
-          onClick={handleRefresh}
-          style={{
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '6px',
-            background: '#10b981',
-            color: 'white',
-            cursor: 'pointer',
-            fontWeight: '500',
-            transition: 'all 0.2s ease'
-          }}
-          title="Refresh data"
-        >
-          🔄 Refresh
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={handleRefresh}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              background: '#10b981',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            title="Refresh data"
+          >
+            🔄 Refresh
+          </button>
+          <div style={{ 
+            fontSize: '0.75rem', 
+            color: '#6b7280',
+            textAlign: 'center'
+          }}>
+            Last updated: {new Date(lastUpdateTime).toLocaleTimeString()}
+            <br />
+            <span style={{ fontSize: '0.7rem' }}>Auto-refresh: 30s</span>
+          </div>
+        </div>
       </div>
 
       {viewMode === 'current' ? (

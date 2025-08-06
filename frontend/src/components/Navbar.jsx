@@ -1,6 +1,7 @@
 // frontend/src/components/Navbar.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { jwtDecode } from "jwt-decode";
 import './Navbar.css';
 
 function Navbar() {
@@ -12,8 +13,24 @@ function Navbar() {
   useEffect(() => {
     // Listen for changes to localStorage (e.g., login/logout in other tabs) and custom authChanged event
     const handleStorage = () => {
-      setIsLoggedIn(!!localStorage.getItem('token'));
-      setUserRole(localStorage.getItem('userRole'));
+      const token = localStorage.getItem('token');
+      setIsLoggedIn(!!token);
+      
+      // Get role from localStorage first, then fallback to JWT token
+      let role = localStorage.getItem('userRole');
+      if (!role && token) {
+        try {
+          const decoded = jwtDecode(token);
+          role = decoded.role;
+          // Store it in localStorage for future use
+          localStorage.setItem('userRole', role);
+        } catch (error) {
+          console.error('Error decoding token:', error);
+        }
+      }
+      
+      console.log('Navbar: Current user role:', role); // Debug log
+      setUserRole(role);
     };
     window.addEventListener('storage', handleStorage);
     window.addEventListener('authChanged', handleStorage);
@@ -71,7 +88,10 @@ function Navbar() {
       </button>
       
       <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
-        <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+        {/* Hide Dashboard from Principal and Admin users */}
+        {!(userRole === 'Principal' || userRole === 'principal' || userRole === 'admin' || userRole === 'Admin') && (
+          <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+        )}
         <Link to="/ProfilePage" onClick={closeMobileMenu}>Profile</Link>
         {/* Hide New Submission for Principal users since they only review forms */}
         {!(userRole === 'Principal' || userRole === 'principal') && (
@@ -84,7 +104,8 @@ function Navbar() {
             <Link to="/admin/logs" onClick={closeMobileMenu}>Logs</Link>
           </>
         )}
-        {(userRole === 'Principal' || userRole === 'principal') && (
+        {/* Principal Panel - Only show for Principal role */}
+        {(userRole === 'Principal' || userRole === 'principal') && isLoggedIn && (
           <Link to="/principal" onClick={closeMobileMenu}>Principal Panel</Link>
         )}
         {isLoggedIn ? (
