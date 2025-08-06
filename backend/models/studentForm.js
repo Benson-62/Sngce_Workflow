@@ -36,7 +36,7 @@ const studentFormSchema = new mongoose.Schema({
     },
     status : {
         type : String,
-        enum : ['awaiting', 'forwarded', 'accepted', 'rejected','edit'],
+        enum : ['awaiting', 'forwarded', 'accepted', 'rejected'],
         default : 'awaiting'
     },
     submittedBy : {

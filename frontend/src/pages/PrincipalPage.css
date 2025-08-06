@@ -219,11 +219,6 @@
   color: #991b1b;
 }
 
-.status.edit {
-  background: #fef3c7;
-  color: #92400e;
-}
-
 .status-dot {
   display: inline-block;
   width: 16px;

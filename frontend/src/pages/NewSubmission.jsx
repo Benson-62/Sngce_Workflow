@@ -10,7 +10,6 @@ import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import AttachmentViewer from '../components/AttachmentViewer';
 
 const initialStateStudent = {
   subject: '',
@@ -417,18 +416,6 @@ function NewSubmission() {
       <div className="form-row">
         <label>Attachment</label>
         <input type="file" onChange={handleAttachmentStudent} />
-        {attachmentStudent && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
-              Selected attachment:
-            </div>
-            <AttachmentViewer attachment={{
-              filename: attachmentStudent.name,
-              mimetype: attachmentStudent.type,
-              file: attachmentStudent
-            }} />
-          </div>
-        )}
       </div>
       {/* Remarks removed for students */}
       <div className="form-row form-btn-row">
@@ -529,18 +516,6 @@ function NewSubmission() {
       <div className="form-row">
         <label>Attachment</label>
         <input type="file" onChange={handleAttachmentStaff} />
-        {attachmentStaff && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: '0.9em', color: '#666', marginBottom: 8 }}>
-              Selected attachment:
-            </div>
-            <AttachmentViewer attachment={{
-              filename: attachmentStaff.name,
-              mimetype: attachmentStaff.type,
-              file: attachmentStaff
-            }} />
-          </div>
-        )}
       </div>
       {/* Remarks removed for staff */}
       <div className="form-row form-btn-row">
