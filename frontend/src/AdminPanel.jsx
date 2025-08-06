@@ -55,6 +55,17 @@ function AdminPanel() {
   // Combine all forms for display
   const allForms = [...facultyForms, ...studentForms];
 
+  // Add User form state
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const [newUser, setNewUser] = useState({
+    fName: '',
+    lName: '',
+    email: '',
+    password: '',
+    role: 'Student',
+    department: 'CSE'
+  });
+
   // User management actions
   const handleDeleteUser = (email) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
@@ -62,6 +73,51 @@ function AdminPanel() {
       setUsers(updated);
       // TODO: Call backend to delete user
     }
+  };
+
+  // Add User functionality
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!newUser.fName || !newUser.lName || !newUser.email || !newUser.password || !newUser.department) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    
+    if (newUser.password.length < 6) {
+      alert('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      await axios.post('http://localhost:3096/createAccount', newUser);
+      
+      // Add to local state
+      setUsers(prev => [...prev, { ...newUser, password: undefined }]);
+      
+      // Reset form
+      setNewUser({
+        fName: '',
+        lName: '',
+        email: '',
+        password: '',
+        role: 'Student',
+        department: 'CSE'
+      });
+      
+      setShowAddUserForm(false);
+      alert('User added successfully!');
+      
+    } catch (error) {
+      console.error('Error adding user:', error);
+      alert('Failed to add user. Please try again.');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
   // Form management actions
@@ -140,13 +196,194 @@ function AdminPanel() {
           )}
                   {section === 'users' && (
             <div className="admin-section">
-              <h2>User Management</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2>User Management</h2>
+                <button 
+                  className="admin-btn" 
+                  onClick={() => setShowAddUserForm(!showAddUserForm)}
+                  style={{ background: '#22c55e' }}
+                >
+                  {showAddUserForm ? 'Cancel' : '+ Add User'}
+                </button>
+              </div>
+              
+              {showAddUserForm && (
+                <div style={{ 
+                  background: '#f8fafc', 
+                  padding: '24px', 
+                  borderRadius: '8px', 
+                  border: '1px solid #e2e8f0', 
+                  marginBottom: '24px' 
+                }}>
+                  <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#374151' }}>Add New User</h3>
+                  <form onSubmit={handleAddUser}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          First Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="fName"
+                          value={newUser.fName}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          Last Name *
+                        </label>
+                        <input
+                          type="text"
+                          name="lName"
+                          value={newUser.lName}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          Email *
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={newUser.email}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          Password *
+                        </label>
+                        <input
+                          type="password"
+                          name="password"
+                          value={newUser.password}
+                          onChange={handleInputChange}
+                          required
+                          minLength="6"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          Role *
+                        </label>
+                        <select
+                          name="role"
+                          value={newUser.role}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        >
+                          <option value="Student">Student</option>
+                          <option value="Faculty">Faculty</option>
+                          <option value="FacultyAdvisor">Faculty Advisor</option>
+                          <option value="HOD">HOD</option>
+                          <option value="Principal">Principal</option>
+                          <option value="Admin">Admin</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '14px' }}>
+                          Department *
+                        </label>
+                        <select
+                          name="department"
+                          value={newUser.department}
+                          onChange={handleInputChange}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        >
+                          <option value="CSE">Computer Science & Engineering</option>
+                          <option value="NASB">NASB</option>
+                          <option value="ECE">Electronics & Communication Engineering</option>
+                          <option value="EEE">Electrical & Electronics Engineering</option>
+                          <option value="ME">Mechanical Engineering</option>
+                          <option value="CE">Civil Engineering</option>
+                          <option value="AI">Artificial Intelligence</option>
+                          <option value="CS">Computer Science</option>
+                          <option value="MCA">Master of Computer Applications</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button 
+                        type="submit" 
+                        className="admin-btn"
+                        style={{ background: '#3b82f6' }}
+                      >
+                        Create User
+                      </button>
+                      <button 
+                        type="button" 
+                        className="admin-btn"
+                        style={{ background: '#6b7280' }}
+                        onClick={() => setShowAddUserForm(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
               <table className="admin-table">
                 <thead>
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
+                    <th>Department</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -156,6 +393,7 @@ function AdminPanel() {
                       <td>{u.fName || '-'} {u.lName || ''}</td>
                       <td>{u.email}</td>
                       <td>{u.role}</td>
+                      <td>{u.department || 'N/A'}</td>
                       <td>
                         {u.role !== 'Admin' && (
                           <button className="admin-btn" onClick={() => handleDeleteUser(u.email)}>Delete</button>
@@ -165,7 +403,9 @@ function AdminPanel() {
                   ))}
                 </tbody>
               </table>
-              <p className="no-data">To add users, use the registration page. (Admin cannot be deleted.)</p>
+              {users.length === 0 && (
+                <div className="no-data">No users found.</div>
+              )}
             </div>
           )}
                   {section === 'submissions' && (

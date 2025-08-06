@@ -530,6 +530,75 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
   }
 });
 
+// Delete form endpoint - allows deletion of forms with 'awaiting' status by authorized users
+app.delete('/deleteForm', async (req, res) => {
+  const { formId, formType, userEmail, userRole } = req.body;
+  
+  console.log('Delete request:', { formId, formType, userEmail, userRole });
+  
+  // Input validation
+  if (!formId || !formType || !userEmail || !userRole) {
+    return res.status(400).send({ message: 'Missing required parameters: formId, formType, userEmail, userRole' });
+  }
+  
+  try {
+    let model;
+    if (formType === 'student') {
+      model = sFormModel;
+    } else if (formType === 'faculty') {
+      model = fFormModel;
+    } else {
+      return res.status(400).send({ message: `Invalid form type: ${formType}` });
+    }
+    
+    // Find the form first
+    const form = await model.findById(formId);
+    if (!form) {
+      return res.status(404).send({ message: 'Form not found' });
+    }
+    
+    // Check if form status is 'awaiting'
+    if (form.status !== 'awaiting' && !form.status) {
+      return res.status(400).send({ message: 'Only forms with "awaiting" status can be deleted' });
+    }
+    
+    // Check authorization:
+    // 1. User can delete forms they submitted
+    // 2. User can delete forms that were sent to them (if they are a valid receiver)
+    const canDelete = form.submittedBy === userEmail || isValidReceiver(form, userEmail, userRole);
+    
+    if (!canDelete) {
+      return res.status(403).send({ message: 'You are not authorized to delete this form' });
+    }
+    
+    // Delete the form
+    await model.findByIdAndDelete(formId);
+    
+    console.log(`Form ${formId} deleted successfully by ${userEmail}`);
+    res.status(200).send({ message: 'Form deleted successfully' });
+    
+  } catch (error) {
+    console.error('Error deleting form:', error);
+    res.status(500).send({ message: 'An error occurred while deleting the form', error: error.message });
+  }
+});
+
+// Helper function to check if user is a valid receiver for a form
+function isValidReceiver(form, userEmail, userRole) {
+  // Admin can delete any form (except in some cases)
+  if (userRole === 'admin' || userRole === 'Admin') {
+    return true;
+  }
+  
+  // Students cannot delete received forms (they only submit)
+  if (userRole === 'Student' || userRole === 'student') {
+    return false;
+  }
+  
+  // Check if user's role is in the "to" field
+  const toArray = Array.isArray(form.to) ? form.to : [form.to];
+  return toArray.includes(userRole);
+}
 
 app.listen(PORT, () => {
   console.log(`Port is up and running at ${PORT}`);

@@ -33,7 +33,7 @@ function PrincipalPage() {
     }));
   };
 
-  // Handler for save
+  // Handler for save (existing modal-based save)
   const handleSave = async (form) => {
     const formId = form._id || form.id;
     const formType = form.owner === 'student' ? 'student' : 'faculty';
@@ -53,6 +53,33 @@ function PrincipalPage() {
       alert('Failed to update.');
     } finally {
       setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
+    }
+  };
+
+  // Handler for quick status changes
+  const handleQuickStatusChange = async (form, newStatus, defaultRemarks) => {
+    if (!window.confirm(`Are you sure you want to ${newStatus} this form?`)) {
+      return;
+    }
+
+    const formId = form._id || form.id;
+    const formType = form.owner === 'student' ? 'student' : 'faculty';
+    
+    try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId,
+        formType,
+        remarks: defaultRemarks,
+        status: newStatus,
+        by: token.role,
+      });
+      
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
     }
   };
 
@@ -201,13 +228,67 @@ function PrincipalPage() {
                           }
                         </td>
                         <td>
-                          <div className="action-buttons">
+                          <div className="action-buttons" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                             <button
                               className="view-btn"
                               onClick={() => navigate(`/received-forms/${submission._id || submission.id}`)}
+                              style={{ 
+                                padding: '4px 8px', 
+                                fontSize: '0.75rem',
+                                background: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
                             >
                               View
                             </button>
+                            
+                            {/* Quick Status Buttons */}
+                            {submission.status !== 'approved' && (
+                              <button
+                                className="approve-btn"
+                                onClick={() => handleQuickStatusChange(submission, 'approved', 'Approved by Principal')}
+                                style={{ 
+                                  padding: '4px 8px', 
+                                  fontSize: '0.75rem',
+                                  background: '#22c55e',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                                title="Approve this form"
+                              >
+                                ✓ Approve
+                              </button>
+                            )}
+                            
+                            {submission.status !== 'rejected' && (
+                              <button
+                                className="reject-btn"
+                                onClick={() => {
+                                  const reason = prompt('Reason for rejection (optional):');
+                                  if (reason !== null) { // User didn't cancel
+                                    handleQuickStatusChange(submission, 'rejected', reason || 'Rejected by Principal');
+                                  }
+                                }}
+                                style={{ 
+                                  padding: '4px 8px', 
+                                  fontSize: '0.75rem',
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                                title="Reject this form"
+                              >
+                                ✗ Reject
+                              </button>
+                            )}
+                            
                             {submission.status === 'awaiting' && (
                               <button
                                 className="review-btn"
@@ -220,8 +301,18 @@ function PrincipalPage() {
                                     }
                                   }));
                                 }}
+                                style={{ 
+                                  padding: '4px 8px', 
+                                  fontSize: '0.75rem',
+                                  background: '#f59e0b',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                                title="Review with detailed comments"
                               >
-                                Review
+                                📝 Review
                               </button>
                             )}
                           </div>
