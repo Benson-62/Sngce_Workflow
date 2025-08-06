@@ -506,6 +506,155 @@ function Dashboard() {
   const [year, setYear] = useState(''); // For Faculty Advisors
   const [div, setDiv] = useState(''); // For Faculty Advisors
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  const [activeSidePanelForm, setActiveSidePanelForm] = useState(null);
+  const [remarks, setRemarks] = useState('');
+  const [forwardTo, setForwardTo] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // FormSidePanel component
+  const FormSidePanel = ({ submission }) => {
+    const possibleReceivers = ['HOD', 'Faculty', 'FacultyAdvisor', 'Principal'];
+
+    const handleSaveAndForward = async () => {
+      if (!remarks || !forwardTo) {
+        alert('Please fill in both remarks and forward to fields');
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const token = jwtDecode(localStorage.getItem('token'));
+        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+          formId: submission._id,
+          formType: submission.owner === 'student' ? 'student' : 'faculty',
+          remarks,
+          status: 'forwarded',
+          by: token.role,
+          forwardTo
+        });
+        
+        setActiveSidePanelForm(null);
+        setRemarks('');
+        setForwardTo('');
+        window.location.reload();
+      } catch (error) {
+        console.error('Error updating form:', error);
+        alert('Failed to update form. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    return (
+      <>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 40
+          }}
+          onClick={() => setActiveSidePanelForm(null)}
+        />
+        <div 
+          style={{
+            position: 'fixed',
+            right: 0,
+            top: 0,
+            width: '400px',
+            height: '100vh',
+            background: 'white',
+            boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
+            padding: '24px',
+            overflowY: 'auto',
+            zIndex: 50
+          }}
+        >
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>Form Actions</h3>
+              <button 
+                onClick={() => setActiveSidePanelForm(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ height: '1px', background: '#e5e7eb' }} />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+              Add Remarks
+            </label>
+            <textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Enter your remarks..."
+              style={{
+                width: '100%',
+                minHeight: '120px',
+                padding: '12px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                resize: 'vertical',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+              Forward To
+            </label>
+            <select
+              value={forwardTo}
+              onChange={(e) => setForwardTo(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px'
+              }}
+            >
+              <option value="">Select recipient...</option>
+              {possibleReceivers.map(receiver => (
+                <option key={receiver} value={receiver}>{receiver}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleSaveAndForward}
+            disabled={isSaving || !remarks || !forwardTo}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: isSaving || !remarks || !forwardTo ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: isSaving || !remarks || !forwardTo ? 'not-allowed' : 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {isSaving ? 'Saving...' : 'Save & Forward'}
+          </button>
+        </div>
+      </>
+    );
+  };
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -787,12 +936,22 @@ function Dashboard() {
                       <td>{submission.createdAt ? new Date(submission.createdAt).toLocaleString() : (submission.date ? new Date(submission.date).toLocaleDateString() : '')}</td>
                       <td>{submission.currentReviewer}</td>
                       <td>
-                        <button
-                          className="view-btn"
-                          onClick={() => navigate(`/received-forms/${submission._id || submission.id}`)}
-                        >
-                          View
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="view-btn"
+                            onClick={() => navigate(`/received-forms/${submission._id || submission.id}`)}
+                            style={{
+                              padding: '6px 12px',
+                              background: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            View
+                          </button>
+                        </div>
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span
@@ -830,6 +989,11 @@ function Dashboard() {
           
           <Archive />
         </div>
+      )}
+
+      {/* Render the side panel when a form is selected */}
+      {activeSidePanelForm && (
+        <FormSidePanel submission={activeSidePanelForm} />
       )}
     </div>
   );

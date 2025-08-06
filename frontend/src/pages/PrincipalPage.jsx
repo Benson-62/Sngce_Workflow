@@ -11,7 +11,6 @@ const statusColors = {
   forwarded: '#3b82f6', // blue
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
-  approved: '#22c55e', // green
 };
 
 function PrincipalPage() {
@@ -19,69 +18,7 @@ function PrincipalPage() {
   const [receivedSubmissions, setReceivedSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
   const [viewMode, setViewMode] = useState('current'); // 'current' or 'archived'
-
-  // Handler for input changes
-  const handleEditChange = (formId, field, value) => {
-    setEditRows(prev => ({
-      ...prev,
-      [formId]: {
-        ...prev[formId],
-        [field]: value,
-      },
-    }));
-  };
-
-  // Handler for save (existing modal-based save)
-  const handleSave = async (form) => {
-    const formId = form._id || form.id;
-    const formType = form.owner === 'student' ? 'student' : 'faculty';
-    const { remarks, status } = editRows[formId] || {};
-    setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
-    try {
-      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
-        formId,
-        formType,
-        remarks,
-        userRole,
-        status,
-      });
-      // Optimistically update the receivedSubmissions state
-      setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
-    } catch (err) {
-      alert('Failed to update.');
-    } finally {
-      setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
-    }
-  };
-
-  // Handler for quick status changes
-  const handleQuickStatusChange = async (form, newStatus, defaultRemarks) => {
-    if (!window.confirm(`Are you sure you want to ${newStatus} this form?`)) {
-      return;
-    }
-
-    const formId = form._id || form.id;
-    const formType = form.owner === 'student' ? 'student' : 'faculty';
-    
-    try {
-      const token = jwtDecode(localStorage.getItem('token'));
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
-        formId,
-        formType,
-        remarks: defaultRemarks,
-        status: newStatus,
-        by: token.role,
-      });
-      
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Failed to update status. Please try again.');
-    }
-  };
 
   const handleRefresh = () => {
     console.log('Manual refresh triggered');
@@ -244,77 +181,6 @@ function PrincipalPage() {
                             >
                               View
                             </button>
-                            
-                            {/* Quick Status Buttons */}
-                            {submission.status !== 'approved' && (
-                              <button
-                                className="approve-btn"
-                                onClick={() => handleQuickStatusChange(submission, 'approved', 'Approved by Principal')}
-                                style={{ 
-                                  padding: '4px 8px', 
-                                  fontSize: '0.75rem',
-                                  background: '#22c55e',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
-                                title="Approve this form"
-                              >
-                                ✓ Approve
-                              </button>
-                            )}
-                            
-                            {submission.status !== 'rejected' && (
-                              <button
-                                className="reject-btn"
-                                onClick={() => {
-                                  const reason = prompt('Reason for rejection (optional):');
-                                  if (reason !== null) { // User didn't cancel
-                                    handleQuickStatusChange(submission, 'rejected', reason || 'Rejected by Principal');
-                                  }
-                                }}
-                                style={{ 
-                                  padding: '4px 8px', 
-                                  fontSize: '0.75rem',
-                                  background: '#ef4444',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
-                                title="Reject this form"
-                              >
-                                ✗ Reject
-                              </button>
-                            )}
-                            
-                            {submission.status === 'awaiting' && (
-                              <button
-                                className="review-btn"
-                                onClick={() => {
-                                  setEditRows(prev => ({
-                                    ...prev,
-                                    [submission._id]: {
-                                      remarks: submission.remarks || '',
-                                      status: submission.status || 'awaiting'
-                                    }
-                                  }));
-                                }}
-                                style={{ 
-                                  padding: '4px 8px', 
-                                  fontSize: '0.75rem',
-                                  background: '#f59e0b',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer'
-                                }}
-                                title="Review with detailed comments"
-                              >
-                                📝 Review
-                              </button>
-                            )}
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
@@ -334,81 +200,7 @@ function PrincipalPage() {
             </div>
           </div>
 
-          {/* Review Modal for forms that need attention */}
-          {Object.keys(editRows).length > 0 && (
-            <div className="review-modal">
-              <div className="review-modal-content">
-                <h3>Review Form</h3>
-                {Object.entries(editRows).map(([formId, editData]) => {
-                  const form = receivedSubmissions.find(f => f._id === formId);
-                  if (!form) return null;
-                  
-                  return (
-                    <div key={formId} className="review-form">
-                      <div className="review-form-header">
-                        <h4>Form #{form.formNo} - {form.subject}</h4>
-                        <button
-                          className="close-btn"
-                          onClick={() => setEditRows(prev => {
-                            const newRows = { ...prev };
-                            delete newRows[formId];
-                            return newRows;
-                          })}
-                        >
-                          ×
-                        </button>
-                      </div>
-                      
-                      <div className="review-form-body">
-                        <div className="form-field">
-                          <label>Status:</label>
-                          <select
-                            value={editData.status || 'awaiting'}
-                            onChange={(e) => handleEditChange(formId, 'status', e.target.value)}
-                          >
-                            <option value="awaiting">Awaiting</option>
-                            <option value="forwarded">Forwarded</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="rejected">Rejected</option>
-                          </select>
-                        </div>
-                        
-                        <div className="form-field">
-                          <label>Remarks:</label>
-                          <textarea
-                            value={editData.remarks || ''}
-                            onChange={(e) => handleEditChange(formId, 'remarks', e.target.value)}
-                            placeholder="Add your remarks here..."
-                            rows="4"
-                          />
-                        </div>
-                        
-                        <div className="form-actions">
-                          <button
-                            className="save-btn"
-                            onClick={() => handleSave(form)}
-                            disabled={editData.saving}
-                          >
-                            {editData.saving ? 'Saving...' : 'Save Changes'}
-                          </button>
-                          <button
-                            className="cancel-btn"
-                            onClick={() => setEditRows(prev => {
-                              const newRows = { ...prev };
-                              delete newRows[formId];
-                              return newRows;
-                            })}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+
         </div>
       ) : (
         <div className="archived-section">
