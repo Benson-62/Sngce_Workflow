@@ -58,8 +58,18 @@ function LoginPage() {
       const data = await response.json();
       localStorage.setItem('token', data.token);
       localStorage.setItem('userName', `${data.fName} ${data.lName}`);
+      localStorage.setItem('userRole', data.role);
+      localStorage.setItem('userEmail', data.email);
       window.dispatchEvent(new Event('authChanged'));
-      navigate('/dashboard');
+      
+      // Role-based routing
+      if (data.role === 'principal' || data.role === 'Principal') {
+        navigate('/principal');
+      } else if (data.role === 'admin' || data.role === 'Admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError('Network error');
     }

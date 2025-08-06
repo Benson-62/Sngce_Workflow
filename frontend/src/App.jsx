@@ -10,6 +10,9 @@ import AdminPanel from './AdminPanel';
 import ReceivedForms from './pages/ReceivedForms';
 import ReceivedFormView from './pages/ReceivedFormView';
 import SubmissionView from './pages/SubmissionView';
+import PrincipalPage from './pages/PrincipalPage';
+import ProfilePage from './pages/ProfilePage';
+import MySubmission from './pages/MySubmission';
 import './App.css';
 
 function App() {
@@ -26,6 +29,9 @@ function App() {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/received-forms" element={<ReceivedForms />} />
           <Route path="/received-forms/:id" element={<ReceivedFormView />} />
+          <Route path="/principal" element={<PrincipalPage />} />
+          <Route path="/ProfilePage" element={<ProfilePage />} />
+          <Route path="/my-submission" element={<MySubmission />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>

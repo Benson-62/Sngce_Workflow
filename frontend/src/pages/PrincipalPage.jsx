@@ -69,7 +69,7 @@ function PrincipalPage() {
     }
     
     // Check if user is actually a principal
-    if (token.role !== 'Principal') {
+    if (token.role !== 'Principal' && token.role !== 'principal') {
       navigate('/dashboard');
       return;
     }
