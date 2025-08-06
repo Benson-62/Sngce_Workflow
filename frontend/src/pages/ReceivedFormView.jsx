@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-import AttachmentViewer from '../components/AttachmentViewer';
 const statusLabels = {
   awaiting: 'Awaiting',
   forwarded: 'Forwarded',
   accepted: 'Accepted',
   rejected: 'Rejected',
   approved: 'Approved',
-  edit: 'Edit Requested',
 };
 const statusColors = {
   awaiting: '#fbbf24', // yellow
@@ -17,7 +15,6 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
-  edit: '#f59e0b', // orange
 };
 const FORWARD_OPTIONS = [
   { label: 'Head of Department (HoD)', value: 'HOD' },
@@ -101,34 +98,6 @@ const handleSave = async () => {
     }
 };
 
-const handleRequestChanges = async () => {
-    if (!form) return;
-    setSaving(true);
-    setError('');
-    try {
-      const formType = form.owner === 'student' ? 'student' : 'faculty';
-
-      // Update form status to 'edit' for requesting changes
-      const response = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
-        formId: form._id || form.id,
-        formType,
-        remarks: remarks || 'Changes requested by reviewer',
-        status: 'edit',
-        by: userRole,
-      });
-
-      // Update the form state with the response
-      setForm(response.data);
-      alert('Form status updated to "edit". The submitter will be notified to make changes.');
-
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to request changes.';
-      setError(message);
-    } finally {
-      setSaving(false);
-    }
-};
-
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
   if (error) return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{error}</div>;
   if (!form) return null;
@@ -164,8 +133,7 @@ const handleRequestChanges = async () => {
         </div>
         {form.attachment && form.attachment.filename && (
           <div style={{ marginBottom: 16, marginLeft: 32 }}>
-            <b>Attachment:</b>
-            <AttachmentViewer attachment={form.attachment} />
+            <b>Attachment:</b> {form.attachment.filename}
           </div>
         )}
         <div style={{ marginTop: 32 }}>
@@ -194,23 +162,14 @@ const handleRequestChanges = async () => {
               ))}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: 18 }}>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{ background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}
-            >
-              {saving ? 'Saving...' : 'Forward'}
-            </button>
-            <button
-              onClick={handleRequestChanges}
-              disabled={saving}
-              style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px' }}
-            >
-              {saving ? 'Saving...' : 'Request Changes'}
-            </button>
-          </div>
-          {error && <span style={{ color: 'red', marginTop: 8, display: 'block' }}>{error}</span>}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ background: '#3182ce', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 16px', marginTop: 18 }}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {error && <span style={{ color: 'red', marginLeft: 12 }}>{error}</span>}
         </div>
       </div>
     </div>

@@ -6,7 +6,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import NewSubmission from './pages/NewSubmission';
-import EditForm from './pages/EditForm';
 import AdminPanel from './AdminPanel';
 import ReceivedForms from './pages/ReceivedForms';
 import ReceivedFormView from './pages/ReceivedFormView';
@@ -24,7 +23,6 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submission/new" element={<NewSubmission />} />
           <Route path="/submission/:id" element={<SubmissionView />} />
-          <Route path="/submission/:id/edit" element={<EditForm />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/received-forms" element={<ReceivedForms />} />
           <Route path="/received-forms/:id" element={<ReceivedFormView />} />

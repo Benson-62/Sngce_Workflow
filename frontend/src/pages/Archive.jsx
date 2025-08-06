@@ -7,8 +7,7 @@ import './Archive.css';
 const statusColors = {
   accepted: '#22c55e',
   rejected: '#ef4444',
-  approved: '#22c55e',
-  edit: '#f59e0b'
+  approved: '#22c55e'
 };
 
 export default function Archive() {
