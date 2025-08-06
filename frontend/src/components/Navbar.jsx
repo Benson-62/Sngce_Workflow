@@ -7,6 +7,7 @@ function Navbar() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
   const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Listen for changes to localStorage (e.g., login/logout in other tabs) and custom authChanged event
@@ -23,6 +24,14 @@ function Navbar() {
       window.removeEventListener('authChanged', handleStorage);
     };
   }, []);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   const handleLogout = () => {
     // Clear all auth/user info from localStorage
@@ -50,20 +59,6 @@ function Navbar() {
           <span className="brand-text">Workflow</span>
         </Link>
       </div>
-<<<<<<< HEAD
-      <div className="nav-links">
-        <Link to="/dashboard">Dashboard</Link>
-        <Link to="/ProfilePage">Profile</Link>
-
-        <Link to="/submission/new">New Submission</Link>
-        {userRole === 'admin' && (
-          <>
-            <Link to="/admin">Admin</Link>
-            <Link to="/admin/users">Users</Link>
-            <Link to="/admin/logs">Logs</Link>
-          </>
-        )}
-=======
       
       <button 
         className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
@@ -77,8 +72,15 @@ function Navbar() {
       
       <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
         <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+        <Link to="/ProfilePage" onClick={closeMobileMenu}>Profile</Link>
         <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
->>>>>>> parent of 7eab1cc (-principal page)
+        {userRole === 'admin' && (
+          <>
+            <Link to="/admin" onClick={closeMobileMenu}>Admin</Link>
+            <Link to="/admin/users" onClick={closeMobileMenu}>Users</Link>
+            <Link to="/admin/logs" onClick={closeMobileMenu}>Logs</Link>
+          </>
+        )}
         {isLoggedIn ? (
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         ) : null 
