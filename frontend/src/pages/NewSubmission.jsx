@@ -7,7 +7,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { CheckBoxOutlineBlank, CheckBox } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
@@ -83,6 +83,14 @@ const DEPARTMENT_OPTIONS = [
 // }
 
 function NewSubmission() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're in edit mode
+  const editMode = location.state?.editMode || false;
+  const existingFormData = location.state?.formData || null;
+  const editFormId = location.state?.formId || null;
+  
   const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({
     ...initialStateStudent,
@@ -93,13 +101,12 @@ function NewSubmission() {
     subject: '', // will store the value of the dropdown
   });
   const today = new Date().toISOString().slice(0, 10);
-  const submissionNo = '001/2025';
+  const submissionNo = editMode ? (existingFormData?.formNo || '001/2025') : '001/2025';
   const formRef = useRef();
   const printLetterRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
   const [attachmentStudent, setAttachmentStudent] = useState(null);
   const [attachmentStaff, setAttachmentStaff] = useState(null);
-  const navigate = useNavigate();
   // Removed email state
 
   useEffect(() => {
@@ -115,6 +122,32 @@ function NewSubmission() {
       navigate('/login');
     }
   }, [navigate]);
+
+  // Initialize form data in edit mode
+  useEffect(() => {
+    if (editMode && existingFormData) {
+      if (existingFormData.owner === 'student') {
+        setFormStudent({
+          subject: existingFormData.subject || '',
+          department: existingFormData.department || '',
+          to: Array.isArray(existingFormData.to) ? existingFormData.to : [existingFormData.to],
+          toOthers: existingFormData.others || '',
+          details: existingFormData.details || '',
+          // Copy other fields as needed
+        });
+      } else {
+        setFormStaff({
+          subject: existingFormData.subject || '',
+          department: existingFormData.department || '',
+          to: Array.isArray(existingFormData.to) ? existingFormData.to : [existingFormData.to],
+          toOthers: existingFormData.others || '',
+          details: existingFormData.details || '',
+          // Copy other fields as needed
+        });
+      }
+    }
+  }, [editMode, existingFormData]);
+
   // File conversion
   const toBase64 = (file) => {
   return new Promise((resolve, reject) => {
@@ -200,11 +233,26 @@ function NewSubmission() {
         year : year,
         div : div
       });
-      await axios.post('http://localhost:3096/studentFormSubmission', payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      
+      if (editMode && editFormId) {
+        // Update existing form
+        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+          formId: editFormId,
+          formType: 'student',
+          status: 'awaiting', // Reset status to awaiting for re-review
+          remarks: 'Form updated and resubmitted',
+          by: email,
+        });
+        // Note: We might need a separate endpoint to update form content
+        alert('Form updated and resubmitted successfully!');
+      } else {
+        // Create new form
+        await axios.post('http://localhost:3096/studentFormSubmission', payload, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
       navigate('/dashboard');
     } catch (error) {
       alert('Submission failed. Please try again.');
@@ -235,11 +283,26 @@ function NewSubmission() {
         submittedBy: String(email),
         attachment: attachment,
       });
-      await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      
+      if (editMode && editFormId) {
+        // Update existing form
+        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+          formId: editFormId,
+          formType: 'faculty',
+          status: 'awaiting', // Reset status to awaiting for re-review
+          remarks: 'Form updated and resubmitted',
+          by: email,
+        });
+        // Note: We might need a separate endpoint to update form content
+        alert('Form updated and resubmitted successfully!');
+      } else {
+        // Create new form
+        await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+      }
       navigate('/dashboard');
     } catch (error) {
       alert('Submission failed. Please try again.');
@@ -338,7 +401,7 @@ function NewSubmission() {
 
   const studentForm = (
     <form className="submission-card" onSubmit={handleSubmitStudent} ref={formRef}>
-      <h2 className="form-title">SUBMISSION Student </h2>
+      <h2 className="form-title">{editMode ? 'EDIT SUBMISSION Student' : 'SUBMISSION Student'}</h2>
       <div className="form-meta-row">
         <div>
           <label>No:</label>
@@ -419,7 +482,7 @@ function NewSubmission() {
       </div>
       {/* Remarks removed for students */}
       <div className="form-row form-btn-row">
-        <button type="submit" className="submit-btn">Submit</button>
+        <button type="submit" className="submit-btn">{editMode ? 'Update & Resubmit' : 'Submit'}</button>
         <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
         <button type="button" className="print-btn" onClick={handlePrintPDF}>Print as PDF</button>
       </div>
@@ -429,7 +492,7 @@ function NewSubmission() {
   // --- Staff Form ---
   const staffForm = (
     <form className="submission-card" onSubmit={handleSubmitStaff} ref={formRef}>
-      <h2 className="form-title">SUBMISSION</h2>
+      <h2 className="form-title">{editMode ? 'EDIT SUBMISSION' : 'SUBMISSION'}</h2>
       <div className="form-meta-row">
         <div>
           <label>No:</label>
@@ -519,7 +582,7 @@ function NewSubmission() {
       </div>
       {/* Remarks removed for staff */}
       <div className="form-row form-btn-row">
-        <button type="submit" className="submit-btn">Submit</button>
+        <button type="submit" className="submit-btn">{editMode ? 'Update & Resubmit' : 'Submit'}</button>
         <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
         <button type="button" className="print-btn" onClick={handlePrintPDF}>Print as PDF</button>
       </div>
@@ -601,7 +664,7 @@ function RoleSubmissionForm({ userRole, studentForm, staffForm, printLetterView,
 
   return (
     <div className="submission-outer">
-      <h1 className="submission-main-title">Submission and Approval</h1>
+              <h1 className="submission-main-title">{editMode ? 'Edit Form Submission' : 'Submission and Approval'}</h1>
       {showPrintView ? printLetterView : (userRole === 'Student' ? studentForm : staffForm)}
     </div>
   );

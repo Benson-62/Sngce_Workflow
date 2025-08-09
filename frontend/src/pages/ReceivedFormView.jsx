@@ -15,6 +15,19 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange - needs editing/revision
+};
+
+// Role permissions map
+const rolePermissions = {
+  Principal: { accept: true, reject: true, requestEdit: true },
+  principal: { accept: true, reject: true, requestEdit: true },
+  Manager: { accept: true, reject: true, requestEdit: true },
+  manager: { accept: true, reject: true, requestEdit: true },
+  HOD: { accept: false, reject: true, requestEdit: true },
+  hod: { accept: false, reject: true, requestEdit: true },
+  FacultyAdvisor: { accept: false, reject: true, requestEdit: true },
+  facultyadvisor: { accept: false, reject: true, requestEdit: true },
 };
 const FORWARD_OPTIONS = [
   { label: 'Head of Department (HoD)', value: 'HOD' },
@@ -210,139 +223,257 @@ const handleAction = async (action) => {
               overflowY: 'auto'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.5rem' }}>Form Actions</h3>
-              <button 
-                onClick={() => setShowSidePanel(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: '#666'
-                }}
-              >
-                ×
-              </button>
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ 
+                  margin: 0, 
+                  color: '#374151', 
+                  fontSize: '1.2rem',
+                }}>⚡ Form Actions</h3>
+                <button 
+                  onClick={() => setShowSidePanel(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    color: '#64748b'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ height: '2px', background: '#e5e7eb' }} />
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#374151' }}>
-                Add Remarks
-              </label>
+            {/* Form Info */}
+            <div style={{ 
+              background: '#f8fafc',
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 20,
+              border: '1px solid #e2e8f0'
+            }}>
+              <h4 style={{ margin: '0 0 8px 0', color: '#374151', fontSize: '1rem' }}>
+                📋 Form Details
+              </h4>
+              <div style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
+                <div><strong>Form ID:</strong> #{form.formNo || form._id}</div>
+                <div><strong>Subject:</strong> {form.subject}</div>
+                <div><strong>Department:</strong> {form.department}</div>
+                <div><strong>Status:</strong> 
+                  <span style={{ 
+                    background: statusColors[form.status?.toLowerCase?.()] || '#888',
+                    color: 'white',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    marginLeft: '8px'
+                  }}>
+                    {form.status || 'awaiting'}
+                  </span>
+                </div>
+                <div><strong>Submitted By:</strong> {form.submittedBy}</div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                🎯 Quick Actions
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                {/* Accept button only for Principal/Manager */}
+                {rolePermissions[userRole]?.accept && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to accept this form?')) {
+                        handleAction('accepted');
+                      }
+                    }}
+                    disabled={saving}
+                    style={{
+                      background: '#22c55e',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.6 : 1
+                    }}
+                  >
+                    ✓ Accept Form
+                  </button>
+                )}
+                {/* Reject button for all allowed roles */}
+                {rolePermissions[userRole]?.reject && (
+                  <button
+                    onClick={() => {
+                      if (!remarks.trim()) {
+                        alert('Please provide remarks when rejecting a form.');
+                        return;
+                      }
+                      if (window.confirm('Are you sure you want to reject this form?')) {
+                        handleAction('rejected');
+                      }
+                    }}
+                    disabled={saving}
+                    style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.6 : 1
+                    }}
+                  >
+                    ✗ Reject Form
+                  </button>
+                )}
+                {/* Request Edit button for all allowed roles */}
+                {rolePermissions[userRole]?.requestEdit && (
+                  <button
+                    onClick={() => {
+                      if (!remarks.trim()) {
+                        alert('Please provide remarks when requesting edits.');
+                        return;
+                      }
+                      if (window.confirm('Are you sure you want to request edits for this form?')) {
+                        handleAction('edit');
+                      }
+                    }}
+                    disabled={saving}
+                    style={{
+                      background: '#f59e0b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.6 : 1
+                    }}
+                  >
+                    ✏️ Request Edit
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Remarks Section */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                💬 Remarks
+              </h4>
               <textarea
                 value={remarks}
                 onChange={e => setRemarks(e.target.value)}
-                placeholder="Enter your remarks..."
+                placeholder="Add your remarks here..."
                 style={{
                   width: '100%',
-                  minHeight: '120px',
-                  padding: '12px',
-                  borderRadius: '6px',
+                  minHeight: 80,
+                  padding: 12,
                   border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: '0.9rem',
                   resize: 'vertical',
-                  fontSize: '14px'
+                  fontFamily: 'inherit',
+                  background: '#f8fafc'
                 }}
               />
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#374151' }}>
-                Forward To
-              </label>
+            {/* Forward To Section */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                📤 Forward To
+              </h4>
               <select
                 value={forwardTo}
                 onChange={e => setForwardTo(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '12px',
-                  borderRadius: '6px',
+                  padding: 10,
                   border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  background: 'white'
+                  borderRadius: 6,
+                  fontSize: '0.9rem',
+                  background: '#f8fafc'
                 }}
               >
-                <option value="">Select recipient...</option>
+                <option value="">Select person to forward</option>
                 {FORWARD_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
+
+              {forwardTo && (
+                <button
+                  onClick={() => {
+                    if (!remarks) {
+                      alert('Please add remarks before forwarding');
+                      return;
+                    }
+                    if (window.confirm(`Are you sure you want to forward this form to ${forwardTo}?`)) {
+                      handleAction('forward');
+                    }
+                  }}
+                  disabled={saving || !remarks || !forwardTo}
+                  style={{
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '8px 16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: saving || !remarks || !forwardTo ? 'not-allowed' : 'pointer',
+                    opacity: saving || !remarks || !forwardTo ? 0.6 : 1,
+                    marginTop: 8,
+                    width: '100%'
+                  }}
+                >
+                  📤 Forward Form
+                </button>
+              )}
             </div>
 
-            {form.status !== 'accepted' && (
-              <button
-                onClick={() => {
-                  const reason = prompt('Reason for acceptance (optional):');
-                  if (reason !== null) { // User didn't cancel
-                    setRemarks(reason || 'Accepted by ' + userRole);
-                    handleAction('accepted');
-                  }
-                }}
-                disabled={saving}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  marginBottom: '12px',
-                  background: saving ? '#9ca3af' : '#22c55e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {saving ? 'Saving...' : '✓ Accept Form'}
-              </button>
-            )}
-            
-            {form.status !== 'rejected' && (
-              <button
-                onClick={() => {
-                  const reason = prompt('Reason for rejection (optional):');
-                  if (reason !== null) { // User didn't cancel
-                    setRemarks(reason || 'Rejected by ' + userRole);
-                    handleAction('rejected');
-                  }
-                }}
-                disabled={saving}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  marginBottom: '24px',
-                  background: saving ? '#9ca3af' : '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {saving ? 'Saving...' : '✗ Reject Form'}
-              </button>
-            )}
-
+            {/* Clear/Close Button */}
             <button
-              onClick={() => handleAction('forward')}
-              disabled={saving || !remarks || !forwardTo}
+              onClick={() => setShowSidePanel(false)}
               style={{
-                width: '100%',
-                padding: '12px',
-                background: (saving || !remarks || !forwardTo) ? '#9ca3af' : '#3182ce',
+                background: '#6b7280',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
-                cursor: (saving || !remarks || !forwardTo) ? 'not-allowed' : 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s ease'
+                borderRadius: 6,
+                padding: '8px 16px',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                width: '100%'
               }}
             >
-              {saving ? 'Saving...' : 'Save & Forward'}
+              🗑️ Close Panel
             </button>
+
             {error && (
-              <div style={{ marginTop: '12px', color: '#ef4444', fontSize: '14px', textAlign: 'center' }}>
+              <div style={{ 
+                marginTop: '12px', 
+                padding: '8px', 
+                borderRadius: '4px', 
+                background: '#fef2f2', 
+                color: '#ef4444', 
+                fontSize: '0.875rem', 
+                textAlign: 'center',
+                border: '1px solid #fee2e2' 
+              }}>
                 {error}
               </div>
             )}

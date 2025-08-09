@@ -315,10 +315,15 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 
   try {
     // --- 1. Find Received Forms from Faculty/Staff ---
-    // For staff forms, we only check if the 'to' field contains the user's role.
-    // The more specific checks are only applied to student forms.
-    const facultyQuery = { to: role, department : department };
-    const facultyReceived = await fFormModel.find(facultyQuery);
+    let facultyReceived;
+    if (role === 'Principal' || role === 'principal') {
+      // Principal sees all faculty forms addressed to them
+      facultyReceived = await fFormModel.find({ to: { $in: [role, 'Principal', 'principal'] } });
+    } else {
+      // For other roles, check both role and department
+      const facultyQuery = { to: role, department : department };
+      facultyReceived = await fFormModel.find(facultyQuery);
+    }
 
     // --- 2. Find Received Forms from Students ---
     // Student forms require specific checks for HOD (department) and FacultyAdvisor (department, year, div).
@@ -329,13 +334,17 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
       const toArray = Array.isArray(form.to) ? form.to : [form.to];
 
       // Check #1: Is the current user an intended recipient of this form?
-      const isRecipient = toArray.includes(role) && (
+      const isRecipient = toArray.some(recipient => 
+        (recipient === role || 
+         (role === 'Principal' && recipient === 'principal') ||
+         (role === 'principal' && recipient === 'Principal'))
+      ) && (
         // For HOD, department must also match
         (role === 'HOD' && form.department === department) ||
         // For FacultyAdvisor, department, year, and div must match
         (role === 'FacultyAdvisor' && form.department === department && form.year == year && form.div === div) ||
-        // For other roles (Principal, etc.), role match is sufficient
-        !['HOD', 'FacultyAdvisor'].includes(role)
+        // For Principal and other high-level roles, role match is sufficient
+        ['Principal', 'principal', 'Manager', 'manager'].includes(role)
       );
 
       // If the user isn't a recipient, we can immediately exclude this form.
@@ -345,11 +354,14 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 
       // Check #2: Does the form follow the routing hierarchy rule?
       // Rule: If a form is addressed to HOD or higher, it must have been routed via the FacultyAdvisor.
-      const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'Manager'].includes(r));
+      // Exception: Principal and Manager can see forms directly without FacultyAdvisor routing
+      const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'principal', 'Manager', 'manager'].includes(r));
       const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
+      const isPrincipalOrManager = ['Principal', 'principal', 'Manager', 'manager'].includes(role);
 
-      if (isToHodOrHigher && !includesFacultyAdvisor) {
-        // This form is "stuck" and hasn't been routed correctly yet, so don't show it.
+      if (isToHodOrHigher && !includesFacultyAdvisor && !isPrincipalOrManager) {
+        // This form is "stuck" and hasn't been routed correctly yet, so don't show it to HOD
+        // But Principal and Manager can see all forms addressed to them
         return false;
       }
 
@@ -557,9 +569,9 @@ app.delete('/deleteForm', async (req, res) => {
       return res.status(404).send({ message: 'Form not found' });
     }
     
-    // Check if form status is 'awaiting'
-    if (form.status !== 'awaiting' && !form.status) {
-      return res.status(400).send({ message: 'Only forms with "awaiting" status can be deleted' });
+    // Check if form status allows deletion (awaiting or edit)
+    if (form.status !== 'awaiting' && form.status !== 'edit' && !form.status) {
+      return res.status(400).send({ message: 'Only forms with "awaiting" or "edit" status can be deleted' });
     }
     
     // Check authorization:

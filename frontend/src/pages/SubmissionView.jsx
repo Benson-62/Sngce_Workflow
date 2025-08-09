@@ -16,6 +16,19 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange - needs editing/revision
+};
+
+// Role permissions map
+const rolePermissions = {
+  Principal: { accept: true, reject: true, requestEdit: true },
+  principal: { accept: true, reject: true, requestEdit: true },
+  Manager: { accept: true, reject: true, requestEdit: true },
+  manager: { accept: true, reject: true, requestEdit: true },
+  HOD: { accept: false, reject: true, requestEdit: true },
+  hod: { accept: false, reject: true, requestEdit: true },
+  FacultyAdvisor: { accept: false, reject: true, requestEdit: true },
+  facultyadvisor: { accept: false, reject: true, requestEdit: true },
 };
 
 export default function SubmissionView() {
@@ -173,7 +186,7 @@ export default function SubmissionView() {
       return;
     }
     if (window.confirm('Are you sure you want to request edits for this form?')) {
-      handleFormAction('request_edit', remarks);
+      handleFormAction('edit', remarks);
     }
   };
 
@@ -409,15 +422,15 @@ export default function SubmissionView() {
             </div>
           </div>
           
-          {/* Real-time Updates Info */}
+          {/* Real-time Updates Info
           <div style={{ 
             background: '#f0f9ff',
             borderRadius: 8,
             padding: 12,
             border: '1px solid #0ea5e9',
             marginBottom: 12
-          }}>
-            <div style={{ fontSize: '0.85rem', color: '#0369a1' }}>
+          }}> */}
+            {/* <div style={{ fontSize: '0.85rem', color: '#0369a1' }}>
               <div style={{ fontWeight: 'bold', marginBottom: 4 }}>🔄 Live Updates</div>
               <div style={{ fontSize: '0.8rem' }}>
                 Last updated: {new Date(lastUpdateTime).toLocaleTimeString()}
@@ -425,8 +438,8 @@ export default function SubmissionView() {
               <div style={{ fontSize: '0.75rem', marginTop: 4, fontStyle: 'italic' }}>
                 Auto-refresh every 15 seconds
               </div>
-            </div>
-          </div>
+            </div> */}
+          {/* </div> */}
 
           {/* Form Actions - Only show for receivers */}
           {canPerformActions && (
@@ -437,59 +450,68 @@ export default function SubmissionView() {
               
               {/* Action Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                <button
-                  onClick={handleAccept}
-                  disabled={isSubmitting}
-                  style={{
-                    background: '#22c55e',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '10px 16px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    opacity: isSubmitting ? 0.6 : 1
-                  }}
-                >
-                  ✓ Accept Form
-                </button>
+                {/* Accept button only for Principal/Manager */}
+                {rolePermissions[currentUser?.role]?.accept && (
+                  <button
+                    onClick={handleAccept}
+                    disabled={isSubmitting}
+                    style={{
+                      background: '#22c55e',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      opacity: isSubmitting ? 0.6 : 1
+                    }}
+                  >
+                    ✓ Accept Form
+                  </button>
+                )}
                 
-                <button
-                  onClick={handleReject}
-                  disabled={isSubmitting}
-                  style={{
-                    background: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '10px 16px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    opacity: isSubmitting ? 0.6 : 1
-                  }}
-                >
-                  ✗ Reject Form
-                </button>
+                {/* Reject button for all allowed roles */}
+                {rolePermissions[currentUser?.role]?.reject && (
+                  <button
+                    onClick={handleReject}
+                    disabled={isSubmitting}
+                    style={{
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      opacity: isSubmitting ? 0.6 : 1
+                    }}
+                  >
+                    ✗ Reject Form
+                  </button>
+                )}
                 
-                <button
-                  onClick={handleRequestEdit}
-                  disabled={isSubmitting}
-                  style={{
-                    background: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '10px 16px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    opacity: isSubmitting ? 0.6 : 1
-                  }}
-                >
-                  ✏️ Request Edit
-                </button>
+                {/* Request Edit button for all allowed roles */}
+                {rolePermissions[currentUser?.role]?.requestEdit && (
+                  <button
+                    onClick={handleRequestEdit}
+                    disabled={isSubmitting}
+                    style={{
+                      background: '#f59e0b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      opacity: isSubmitting ? 0.6 : 1
+                    }}
+                  >
+                    ✏️ Request Edit
+                  </button>
+                )}
               </div>
             </div>
           )}

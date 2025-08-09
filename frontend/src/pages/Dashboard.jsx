@@ -12,15 +12,19 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange - needs editing/revision
 };
 
 // Actions component for better organization
-function SubmissionActions({ submission, navigate, onStatusChange, onDelete, currentUser, isValidReceiver }) {
+function SubmissionActions({ submission, navigate, onStatusChange, onDelete, onEdit, currentUser, isValidReceiver }) {
   // Check if current user is the sender of this form
   const isSender = submission.submittedBy === currentUser?.email;
   
   // Check if current user can change status (is a valid receiver and not sender)
   const canChangeStatus = !isSender && isValidReceiver(submission);
+  
+  // Check if form needs editing and user is the sender
+  const canEdit = isSender && submission.status === 'edit';
   
   return (
     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -41,10 +45,29 @@ function SubmissionActions({ submission, navigate, onStatusChange, onDelete, cur
       >
         View
       </button>
+      {canEdit && (
+        <button 
+          className="edit-btn"
+          onClick={() => onEdit(submission)}
+          style={{
+            background: '#f59e0b',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            fontSize: '0.75rem',
+            cursor: 'pointer',
+            fontWeight: '500'
+          }}
+          title="Edit this form as requested"
+        >
+          Edit
+        </button>
+      )}
       <button 
         className="delete-btn"
         style={{
-          background: submission.status === 'awaiting' 
+          background: submission.status === 'awaiting' || submission.status === 'edit'
             ? '#ef4444' 
             : '#9ca3af',
           color: 'white',
@@ -52,12 +75,12 @@ function SubmissionActions({ submission, navigate, onStatusChange, onDelete, cur
           borderRadius: '4px',
           padding: '4px 8px',
           fontSize: '0.75rem',
-          cursor: submission.status === 'awaiting' ? 'pointer' : 'not-allowed',
+          cursor: (submission.status === 'awaiting' || submission.status === 'edit') ? 'pointer' : 'not-allowed',
           fontWeight: '500',
-          opacity: submission.status === 'awaiting' ? 1 : 0.6
+          opacity: (submission.status === 'awaiting' || submission.status === 'edit') ? 1 : 0.6
         }}
         onClick={() => onDelete(submission._id, submission.owner, submission.status)}
-        title={submission.status !== 'awaiting' ? 'Only forms with "awaiting" status can be deleted' : 'Delete this form'}
+        title={(submission.status !== 'awaiting' && submission.status !== 'edit') ? 'Only forms with "awaiting" or "edit" status can be deleted' : 'Delete this form'}
       >
         Del
       </button>
@@ -65,7 +88,7 @@ function SubmissionActions({ submission, navigate, onStatusChange, onDelete, cur
   );
 }
 
-function RoleDashboard({ userRole, submissions, navigate }) {
+function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
   // Get current user info for authorization checks
   const getCurrentUserInfo = () => {
     try {
@@ -171,8 +194,14 @@ function RoleDashboard({ userRole, submissions, navigate }) {
           by: token.role,
         });
         
-        // Refresh the page to show updated data
-        window.location.reload();
+        // Update the submission status in the local state
+        const updatedSubmissions = submissions.map(s => {
+          if ((s._id || s.id) === formId) {
+            return { ...s, status: newStatus };
+          }
+          return s;
+        });
+        setSubmissions(updatedSubmissions);
       } catch (error) {
         console.error('Error updating status:', error);
         alert('Failed to update status. Please try again.');
@@ -180,10 +209,21 @@ function RoleDashboard({ userRole, submissions, navigate }) {
     }
   };
 
+  const handleEditForm = (submission) => {
+    // Navigate to new submission page with edit parameters
+    navigate('/submission/new', { 
+      state: { 
+        editMode: true, 
+        formData: submission,
+        formId: submission._id || submission.id 
+      } 
+    });
+  };
+
   const handleDeleteForm = async (formId, formType, status) => {
-    // Only allow deletion of forms that are still awaiting
-    if (status !== 'awaiting') {
-      alert('Only forms with "awaiting" status can be deleted. Forms that are being reviewed or completed cannot be deleted.');
+    // Only allow deletion of forms that are still awaiting or need editing
+    if (status !== 'awaiting' && status !== 'edit') {
+      alert('Only forms with "awaiting" or "edit" status can be deleted. Forms that are being reviewed or completed cannot be deleted.');
       return;
     }
 
@@ -201,8 +241,9 @@ function RoleDashboard({ userRole, submissions, navigate }) {
           data: { formId, formType: backendFormType, userEmail, userRole }
         });
         
-        // Refresh the page to update the data
-        window.location.reload();
+        // Filter out the deleted submission from the local state
+        const updatedSubmissions = submissions.filter(s => (s._id || s.id) !== formId);
+        setSubmissions(updatedSubmissions);
         
         alert('Form deleted successfully!');
       } catch (error) {
@@ -265,6 +306,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         navigate={navigate}
                         onStatusChange={handleStatusChange}
                         onDelete={handleDeleteForm}
+                        onEdit={handleEditForm}
                         currentUser={currentUser}
                         isValidReceiver={isValidReceiver}
                       />
@@ -342,6 +384,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         navigate={navigate}
                         onStatusChange={handleStatusChange}
                         onDelete={handleDeleteForm}
+                        onEdit={handleEditForm}
                         currentUser={currentUser}
                         isValidReceiver={isValidReceiver}
                       />
@@ -417,6 +460,7 @@ function RoleDashboard({ userRole, submissions, navigate }) {
                         navigate={navigate}
                         onStatusChange={handleStatusChange}
                         onDelete={handleDeleteForm}
+                        onEdit={handleEditForm}
                         currentUser={currentUser}
                         isValidReceiver={isValidReceiver}
                       />
@@ -656,9 +700,9 @@ function Dashboard() {
     return;
   }
   setUserRole(token.role);
-  const email = token.email;
-  const role = token.role;
-  const department = token.department;
+  var email = token.email;
+  var role = token.role;
+  var department = token.department;
 
   // Function for FA to fetch forms with year and div
   const fetchReceivedFA = async (yearToFetch, divToFetch) => {
@@ -742,19 +786,11 @@ function Dashboard() {
           setLoading(false);
         }
       };
-      // const fetchReceived = async () => {
-      //   try {
-      //     const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-      //     console.log('Received forms data:', res.data);
-      //     setReceivedSubmissions(res.data || []);
-      //   } catch (err) {
-      //     console.error('Error fetching received forms:', err);
-      //     setErrorReceived('Failed to fetch received submissions');
-      //   } finally {
-      //     setLoadingReceived(false);
-      //   }
-      // };
-      fetchFA();
+      if ( token === 'facultyAdvisor' || token.role === 'FacultyAdvisor' || token.role === 'facultyadvisor') {
+        fetchFA();
+      } else {
+        fetchReceived();
+      }
       fetchSubmissions();
       if (role != "FacultyAdvisor" && role != "facultyadvisor"){// Only fetch received forms for non-FA users
         fetchReceived();
@@ -820,7 +856,7 @@ function Dashboard() {
             Form History
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+        {/* <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
           <button
             onClick={handleRefresh}
             style={{
@@ -836,8 +872,8 @@ function Dashboard() {
             title="Refresh data"
           >
             🔄 Refresh
-          </button>
-          <div style={{ 
+          </button> */}
+          {/* <div style={{ 
             fontSize: '0.75rem', 
             color: '#6b7280',
             textAlign: 'center'
@@ -845,8 +881,8 @@ function Dashboard() {
             Last updated: {new Date(lastUpdateTime).toLocaleTimeString()}
             <br />
             <span style={{ fontSize: '0.7rem' }}>Auto-refresh: 30s</span>
-          </div>
-        </div>
+          </div> */}
+        {/* </div> */}
       </div>
 
       {viewMode === 'current' ? (
