@@ -702,9 +702,9 @@ function Dashboard() {
     return;
   }
   setUserRole(token.role);
-  var email = token.email;
-  var role = token.role;
-  var department = token.department;
+  const email = token.email;
+  const role = token.role;
+  const department = token.department;
 
   // Function for FA to fetch forms with year and div
   const fetchReceivedFA = async (yearToFetch, divToFetch) => {
