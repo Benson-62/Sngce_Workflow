@@ -26,6 +26,11 @@ export default function SubmissionView() {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  
+  // Form action states
+  const [remarks, setRemarks] = useState('');
+  const [forwardTo, setForwardTo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Get current user info
@@ -89,6 +94,100 @@ export default function SubmissionView() {
     (Array.isArray(submission.to) ? submission.to.includes(currentUser.role) : submission.to === currentUser.role)
   );
 
+  // Check if current user can perform actions (receiver only, not sender)
+  const canPerformActions = currentUser && 
+    submission.submittedBy !== currentUser.email && 
+    (Array.isArray(submission.to) ? submission.to.includes(currentUser.role) : submission.to === currentUser.role);
+
+  // Handle form actions
+  const handleFormAction = async (action, actionRemarks = '') => {
+    if (!canPerformActions) {
+      alert('You are not authorized to perform this action.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      const backendFormType = submission.owner === 'staff' ? 'faculty' : submission.owner;
+      
+      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId: submission._id,
+        formType: backendFormType,
+        status: action,
+        remarks: actionRemarks || remarks,
+        forwardTo: forwardTo || undefined
+      });
+      
+      // Refresh the submission data
+      const fetchSubmission = async () => {
+        try {
+          let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+          setSubmission(res.data);
+        } catch (err1) {
+          try {
+            let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+            setSubmission(res.data);
+          } catch (err2) {
+            console.error('Failed to refresh submission');
+          }
+        }
+      };
+      await fetchSubmission();
+      
+      // Reset form
+      setRemarks('');
+      setForwardTo('');
+      alert(`Form ${action} successfully!`);
+      
+    } catch (error) {
+      console.error('Error performing action:', error);
+      alert('Failed to perform action. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle accept action
+  const handleAccept = () => {
+    if (window.confirm('Are you sure you want to accept this form?')) {
+      handleFormAction('accepted', remarks);
+    }
+  };
+
+  // Handle reject action
+  const handleReject = () => {
+    if (!remarks.trim()) {
+      alert('Please provide remarks when rejecting a form.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to reject this form?')) {
+      handleFormAction('rejected', remarks);
+    }
+  };
+
+  // Handle request edit action
+  const handleRequestEdit = () => {
+    if (!remarks.trim()) {
+      alert('Please provide remarks when requesting edits.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to request edits for this form?')) {
+      handleFormAction('request_edit', remarks);
+    }
+  };
+
+  // Handle forward action
+  const handleForward = () => {
+    if (!forwardTo) {
+      alert('Please select someone to forward to.');
+      return;
+    }
+    if (window.confirm(`Are you sure you want to forward this form to ${forwardTo}?`)) {
+      handleFormAction('forwarded', remarks);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40, gap: 24 }}>
       {/* Status Bar */}
@@ -100,7 +199,7 @@ export default function SubmissionView() {
       
       {/* Main Content Container */}
       <div style={{ display: 'flex', gap: 24, flex: 1, maxWidth: 1200 }}>
-        {/* Letter Format */}
+      {/* Letter Format */}
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px #eee', padding: 40, minWidth: 400, flex: 1 }}>
         <div style={{ textAlign: 'right', marginBottom: 16 }}>
           <div><b>Date:</b> {submission.createdAt ? new Date(submission.createdAt).toLocaleString() : ''}</div>
@@ -126,13 +225,6 @@ export default function SubmissionView() {
           <div><b>Department:</b> {submission.department}</div>
           <div><b>Submitted By:</b> {submission.submittedBy}</div>
         </div>
-        {/* Show remarks only in received form session */}
-        {isReceivedView && submission.remarks && (
-          <div style={{ marginTop: 32, padding: 16, background: '#f8f9fa', borderRadius: 8, border: '1px solid #eee' }}>
-            <b>Remarks:</b>
-            <div style={{ marginTop: 8 }}>{submission.remarks}</div>
-          </div>
-        )}
         
         {/* Form History/Roadmap */}
         {submission.history && submission.history.length > 0 && (
@@ -336,6 +428,147 @@ export default function SubmissionView() {
             </div>
           </div>
 
+          {/* Form Actions - Only show for receivers */}
+          {canPerformActions && (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                ⚡ Quick Actions
+              </h4>
+              
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                <button
+                  onClick={handleAccept}
+                  disabled={isSubmitting}
+                  style={{
+                    background: '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '10px 16px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1
+                  }}
+                >
+                  ✓ Accept Form
+                </button>
+                
+                <button
+                  onClick={handleReject}
+                  disabled={isSubmitting}
+                  style={{
+                    background: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '10px 16px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1
+                  }}
+                >
+                  ✗ Reject Form
+                </button>
+                
+                <button
+                  onClick={handleRequestEdit}
+                  disabled={isSubmitting}
+                  style={{
+                    background: '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '10px 16px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1
+                  }}
+                >
+                  ✏️ Request Edit
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Remarks Section */}
+          {canPerformActions && (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                💬 Remarks
+              </h4>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Add your remarks here..."
+                style={{
+                  width: '100%',
+                  minHeight: 80,
+                  padding: 12,
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: '0.9rem',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Forward To Section */}
+          {canPerformActions && (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                📤 Forward To
+              </h4>
+              <select
+                value={forwardTo}
+                onChange={(e) => setForwardTo(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: 10,
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  fontSize: '0.9rem',
+                  background: 'white'
+                }}
+              >
+                <option value="">Select person to forward</option>
+                <option value="FacultyAdvisor">Faculty Advisor</option>
+                <option value="HOD">HOD</option>
+                <option value="Principal">Principal</option>
+                <option value="Manager">Manager</option>
+                <option value="Committee">Committee</option>
+                <option value="Secretary">Secretary</option>
+              </select>
+              
+              {forwardTo && (
+                <button
+                  onClick={handleForward}
+                  disabled={isSubmitting}
+                  style={{
+                    background: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '8px 16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1,
+                    marginTop: 8,
+                    width: '100%'
+                  }}
+                >
+                  📤 Forward Form
+                </button>
+              )}
+            </div>
+          )}
+
           {/* User Info */}
           <div style={{ 
             background: '#f9fafb',
@@ -351,8 +584,8 @@ export default function SubmissionView() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+          </div>
+        )}
       </div>
     </div>
   );

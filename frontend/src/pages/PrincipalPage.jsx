@@ -11,6 +11,7 @@ const statusColors = {
   forwarded: '#3b82f6', // blue
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
+  approved: '#22c55e', // green
 };
 
 function PrincipalPage() {
@@ -18,7 +19,156 @@ function PrincipalPage() {
   const [receivedSubmissions, setReceivedSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editRows, setEditRows] = useState({}); // { [formId]: { remarks, status, saving } }
   const [viewMode, setViewMode] = useState('current'); // 'current' or 'archived'
+  
+  // Enhanced form action states
+  const [selectedForm, setSelectedForm] = useState(null);
+  const [remarks, setRemarks] = useState('');
+  const [forwardTo, setForwardTo] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handler for input changes
+  const handleEditChange = (formId, field, value) => {
+    setEditRows(prev => ({
+      ...prev,
+      [formId]: {
+        ...prev[formId],
+        [field]: value,
+      },
+    }));
+  };
+
+  // Handler for save (existing modal-based save)
+  const handleSave = async (form) => {
+    const formId = form._id || form.id;
+    const formType = form.owner === 'student' ? 'student' : 'faculty';
+    const { remarks, status } = editRows[formId] || {};
+    setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
+    try {
+      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId,
+        formType,
+        remarks,
+        userRole,
+        status,
+      });
+      // Optimistically update the receivedSubmissions state
+      setReceivedSubmissions(prev => prev.map(f => (f._id === formId ? { ...f, remarks, status } : f)));
+    } catch (err) {
+      alert('Failed to update.');
+    } finally {
+      setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: false } }));
+    }
+  };
+
+  // Enhanced form action handler
+  const handleFormAction = async (action, actionRemarks = '') => {
+    if (!selectedForm) {
+      alert('No form selected.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      const formId = selectedForm._id || selectedForm.id;
+      const formType = selectedForm.owner === 'student' ? 'student' : 'faculty';
+      
+      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId,
+        formType,
+        status: action,
+        remarks: actionRemarks || remarks,
+        forwardTo: forwardTo || undefined,
+        by: token.role,
+      });
+      
+      // Update local state
+      setReceivedSubmissions(prev => prev.map(f => 
+        f._id === formId ? { ...f, status: action, remarks: actionRemarks || remarks } : f
+      ));
+      
+      // Reset form
+      setRemarks('');
+      setForwardTo('');
+      setSelectedForm(null);
+      alert(`Form ${action} successfully!`);
+      
+    } catch (error) {
+      console.error('Error performing action:', error);
+      alert('Failed to perform action. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle accept action
+  const handleAccept = () => {
+    if (window.confirm('Are you sure you want to accept this form?')) {
+      handleFormAction('accepted', remarks);
+    }
+  };
+
+  // Handle reject action
+  const handleReject = () => {
+    if (!remarks.trim()) {
+      alert('Please provide remarks when rejecting a form.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to reject this form?')) {
+      handleFormAction('rejected', remarks);
+    }
+  };
+
+  // Handle request edit action
+  const handleRequestEdit = () => {
+    if (!remarks.trim()) {
+      alert('Please provide remarks when requesting edits.');
+      return;
+    }
+    if (window.confirm('Are you sure you want to request edits for this form?')) {
+      handleFormAction('request_edit', remarks);
+    }
+  };
+
+  // Handle forward action
+  const handleForward = () => {
+    if (!forwardTo) {
+      alert('Please select someone to forward to.');
+      return;
+    }
+    if (window.confirm(`Are you sure you want to forward this form to ${forwardTo}?`)) {
+      handleFormAction('forwarded', remarks);
+    }
+  };
+
+  // Handler for quick status changes (legacy)
+  const handleQuickStatusChange = async (form, newStatus, defaultRemarks) => {
+    if (!window.confirm(`Are you sure you want to ${newStatus} this form?`)) {
+      return;
+    }
+
+    const formId = form._id || form.id;
+    const formType = form.owner === 'student' ? 'student' : 'faculty';
+    
+    try {
+      const token = jwtDecode(localStorage.getItem('token'));
+      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        formId,
+        formType,
+        remarks: defaultRemarks,
+        status: newStatus,
+        by: token.role,
+      });
+      
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
+    }
+  };
 
   const handleRefresh = () => {
     console.log('Manual refresh triggered');
@@ -114,8 +264,8 @@ function PrincipalPage() {
       </div>
 
       {viewMode === 'current' ? (
-        <div className="principal-content">
-          <div className="received-forms-section">
+        <div className="principal-content" style={{ display: 'flex', gap: '24px' }}>
+          <div className="received-forms-section" style={{ flex: 1 }}>
             <h2>Received Forms</h2>
             <div className="submissions-table">
               {receivedSubmissions.length === 0 ? (
@@ -168,9 +318,9 @@ function PrincipalPage() {
                           <div className="action-buttons" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                             <button
                               className="view-btn"
-                              onClick={() => navigate(`/received-forms/${submission._id || submission.id}`)}
-                              style={{ 
-                                padding: '4px 8px', 
+                              onClick={() => navigate(`/submission/${submission._id || submission.id}`)}
+                              style={{
+                                padding: '4px 8px',
                                 fontSize: '0.75rem',
                                 background: '#3b82f6',
                                 color: 'white',
@@ -180,6 +330,26 @@ function PrincipalPage() {
                               }}
                             >
                               View
+                            </button>
+                            <button
+                              className="select-btn"
+                              onClick={() => {
+                                setSelectedForm(submission);
+                                setRemarks(submission.remarks || '');
+                                setForwardTo('');
+                              }}
+                              style={{ 
+                                padding: '4px 8px', 
+                                fontSize: '0.75rem',
+                                background: selectedForm?._id === submission._id ? '#8b5cf6' : '#6b7280',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                              title="Select for detailed review"
+                            >
+                              {selectedForm?._id === submission._id ? '✓ Selected' : '📋 Select'}
                             </button>
                           </div>
                         </td>
@@ -200,7 +370,303 @@ function PrincipalPage() {
             </div>
           </div>
 
+          {/* Right-Hand Side Action Panel */}
+          <div style={{ 
+            background: '#fff', 
+            borderRadius: 12, 
+            boxShadow: '0 2px 12px #eee', 
+            padding: 24, 
+            width: 320,
+            height: 'fit-content',
+            position: 'sticky',
+            top: 24
+          }}>
+            <h3 style={{ 
+              margin: '0 0 20px 0', 
+              color: '#374151', 
+              fontSize: '1.2rem',
+              borderBottom: '2px solid #e5e7eb',
+              paddingBottom: 8
+            }}>
+              ⚡ Form Actions
+            </h3>
+            
+            {selectedForm ? (
+              <>
+                {/* Selected Form Info */}
+                <div style={{ 
+                  background: '#f8fafc',
+                  borderRadius: 8,
+                  padding: 16,
+                  marginBottom: 20,
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#374151', fontSize: '1rem' }}>
+                    📋 Selected Form
+                  </h4>
+                  <div style={{ fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
+                    <div><strong>Form ID:</strong> #{selectedForm.formNo || selectedForm._id}</div>
+                    <div><strong>Subject:</strong> {selectedForm.subject}</div>
+                    <div><strong>Department:</strong> {selectedForm.department}</div>
+                    <div><strong>Status:</strong> 
+                      <span style={{ 
+                        background: statusColors[selectedForm.status?.toLowerCase?.()] || '#888',
+                        color: 'white',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        marginLeft: '8px'
+                      }}>
+                        {selectedForm.status || 'awaiting'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
+                {/* Action Buttons */}
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                    🎯 Quick Actions
+                  </h4>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    <button
+                      onClick={handleAccept}
+                      disabled={isSubmitting}
+                      style={{
+                        background: '#22c55e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '10px 16px',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.6 : 1
+                      }}
+                    >
+                      ✓ Accept Form
+                    </button>
+                    
+                    <button
+                      onClick={handleReject}
+                      disabled={isSubmitting}
+                      style={{
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '10px 16px',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.6 : 1
+                      }}
+                    >
+                      ✗ Reject Form
+                    </button>
+                    
+                    <button
+                      onClick={handleRequestEdit}
+                      disabled={isSubmitting}
+                      style={{
+                        background: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '10px 16px',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.6 : 1
+                      }}
+                    >
+                      ✏️ Request Edit
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remarks Section */}
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                    💬 Remarks
+                  </h4>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Add your remarks here..."
+                    style={{
+                      width: '100%',
+                      minHeight: 80,
+                      padding: 12,
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: '0.9rem',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Forward To Section */}
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                    📤 Forward To
+                  </h4>
+                  <select
+                    value={forwardTo}
+                    onChange={(e) => setForwardTo(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: 10,
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: '0.9rem',
+                      background: 'white'
+                    }}
+                  >
+                    <option value="">Select person to forward</option>
+                    <option value="FacultyAdvisor">Faculty Advisor</option>
+                    <option value="HOD">HOD</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Committee">Committee</option>
+                    <option value="Secretary">Secretary</option>
+                  </select>
+                  
+                  {forwardTo && (
+                    <button
+                      onClick={handleForward}
+                      disabled={isSubmitting}
+                      style={{
+                        background: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        padding: '8px 16px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.6 : 1,
+                        marginTop: 8,
+                        width: '100%'
+                      }}
+                    >
+                      📤 Forward Form
+                    </button>
+                  )}
+                </div>
+
+                {/* Clear Selection */}
+                <button
+                  onClick={() => {
+                    setSelectedForm(null);
+                    setRemarks('');
+                    setForwardTo('');
+                  }}
+                  style={{
+                    background: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '8px 16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  🗑️ Clear Selection
+                </button>
+              </>
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#6b7280', 
+                padding: '40px 20px',
+                fontSize: '0.9rem'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '12px' }}>📋</div>
+                <div style={{ fontWeight: '600', marginBottom: '8px' }}>No Form Selected</div>
+                <div>Click "Select" on any form to review and take action</div>
+              </div>
+            )}
+          </div>
+
+          {/* Review Modal for forms that need attention */}
+          {Object.keys(editRows).length > 0 && (
+            <div className="review-modal">
+              <div className="review-modal-content">
+                <h3>Review Form</h3>
+                {Object.entries(editRows).map(([formId, editData]) => {
+                  const form = receivedSubmissions.find(f => f._id === formId);
+                  if (!form) return null;
+                  
+                  return (
+                    <div key={formId} className="review-form">
+                      <div className="review-form-header">
+                        <h4>Form #{form.formNo} - {form.subject}</h4>
+                        <button
+                          className="close-btn"
+                          onClick={() => setEditRows(prev => {
+                            const newRows = { ...prev };
+                            delete newRows[formId];
+                            return newRows;
+                          })}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      
+                      <div className="review-form-body">
+                        <div className="form-field">
+                          <label>Status:</label>
+                          <select
+                            value={editData.status || 'awaiting'}
+                            onChange={(e) => handleEditChange(formId, 'status', e.target.value)}
+                          >
+                            <option value="awaiting">Awaiting</option>
+                            <option value="forwarded">Forwarded</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </div>
+                        
+                        <div className="form-field">
+                          <label>Remarks:</label>
+                          <textarea
+                            value={editData.remarks || ''}
+                            onChange={(e) => handleEditChange(formId, 'remarks', e.target.value)}
+                            placeholder="Add your remarks here..."
+                            rows="4"
+                          />
+                        </div>
+                        
+                        <div className="form-actions">
+                          <button
+                            className="save-btn"
+                            onClick={() => handleSave(form)}
+                            disabled={editData.saving}
+                          >
+                            {editData.saving ? 'Saving...' : 'Save Changes'}
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            onClick={() => setEditRows(prev => {
+                              const newRows = { ...prev };
+                              delete newRows[formId];
+                              return newRows;
+                            })}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="archived-section">

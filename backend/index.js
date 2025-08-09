@@ -600,6 +600,42 @@ function isValidReceiver(form, userEmail, userRole) {
   return toArray.includes(userRole);
 }
 
+// Get forwarded forms for a user (forms they submitted that have been forwarded)
+app.get('/getForwardedFormsForUser', async (req, res) => {
+  const { email, role } = req.query;
+  
+  console.log('Fetching forwarded forms for:', { email, role });
+  
+  if (!email || !role) {
+    return res.status(400).send({ message: 'Missing required parameters: email, role' });
+  }
+  
+  try {
+    // Get forms submitted by this user from both student and faculty models
+    const [studentForms, facultyForms] = await Promise.all([
+      sFormModel.find({ submittedBy: email }),
+      fFormModel.find({ submittedBy: email })
+    ]);
+    
+    // Combine and filter forms that have been forwarded (status is not 'awaiting')
+    const allForms = [...studentForms, ...facultyForms];
+    const forwardedForms = allForms.filter(form => 
+      form.status && form.status !== 'awaiting'
+    );
+    
+    console.log(`Found ${forwardedForms.length} forwarded forms for ${email}`);
+    
+    // Sort by most recent first
+    forwardedForms.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    res.status(200).send(forwardedForms);
+    
+  } catch (error) {
+    console.error('Error fetching forwarded forms:', error);
+    res.status(500).send({ message: 'An error occurred while fetching forwarded forms', error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Port is up and running at ${PORT}`);
 });
