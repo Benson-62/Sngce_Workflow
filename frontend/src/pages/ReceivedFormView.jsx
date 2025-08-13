@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 const statusLabels = {
   awaiting: 'Awaiting',
   forwarded: 'Forwarded',
@@ -47,6 +49,8 @@ export default function ReceivedFormView() {
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState('');
   const [showSidePanel, setShowSidePanel] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const letterRef = useRef(null);
 
   useEffect(() => {
     const token = jwtDecode(localStorage.getItem('token'));
@@ -126,6 +130,73 @@ const handleAction = async (action) => {
   const status = form.status || 'awaiting';
   const statusLabel = statusLabels[status] || status;
   const statusColor = statusColors[status] || '#888';
+  const isFinal = ['accepted','rejected'].includes((status || '').toLowerCase());
+
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      // Page setup
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 14;
+
+      // 1) Capture letter panel as image on first page
+      if (letterRef.current) {
+        const canvas = await html2canvas(letterRef.current, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - margin * 2;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, pageHeight - margin * 2));
+      }
+
+      // 2) Add roadmap/history as text on subsequent page(s)
+      doc.addPage();
+      let y = margin;
+      doc.setFontSize(16);
+      doc.text('Form Roadmap & Remarks', margin, y);
+      y += 8;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 8;
+      doc.setFontSize(12);
+
+      const lines = [];
+      lines.push(`Form: #${form.formNo || form._id}`);
+      lines.push(`Subject: ${form.subject}`);
+      lines.push(`Department: ${form.department}`);
+      lines.push(`Submitted By: ${form.submittedBy}`);
+      lines.push(`Status: ${form.status}`);
+      lines.push('');
+      lines.push('History:');
+      (form.history || []).forEach((h, idx) => {
+        const ts = h.timestamp ? new Date(h.timestamp).toLocaleString() : '';
+        const header = `${idx + 1}. [${ts}] ${h.by || 'system'} - ${h.action || ''}`;
+        lines.push(header);
+        if (h.remarks) {
+          lines.push(`   Remarks: ${h.remarks}`);
+        }
+        lines.push('');
+      });
+
+      const content = doc.splitTextToSize(lines.join('\n'), pageWidth - margin * 2);
+      content.forEach((line) => {
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+
+      doc.save(`form_${form.formNo || form._id}_roadmap.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <>
@@ -149,7 +220,7 @@ const handleAction = async (action) => {
           <div style={{ marginBottom: 16 }}>
             <div><b>Subject:</b> {form.subject}</div>
           </div>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }} ref={letterRef}>
             <div>Respected Sir/Madam,</div>
             <div style={{ marginTop: 16, marginLeft: 32 }}>{form.details}</div>
           </div>
@@ -164,7 +235,20 @@ const handleAction = async (action) => {
           </div>
           
           {/* Action Button */}
-          <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ marginTop: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Download roadmap for FA/HOD/Principal */}
+            {['FacultyAdvisor','HOD','Principal','facultyadvisor','hod','principal'].includes(userRole) && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloading}
+                style={{
+                  background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6,
+                  padding: '10px 16px', fontWeight: 600, cursor: downloading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                ⬇️ Download PDF
+              </button>
+            )}
             <button
               onClick={() => setShowSidePanel(true)}
               style={{
@@ -283,10 +367,9 @@ const handleAction = async (action) => {
               <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
                 🎯 Quick Actions
               </h4>
-              
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                {/* Accept button only for Principal/Manager */}
-                {rolePermissions[userRole]?.accept && (
+                {/* Accept button only for Principal/Manager and when not final */}
+                {rolePermissions[userRole]?.accept && !isFinal && (
                   <button
                     onClick={() => {
                       if (window.confirm('Are you sure you want to accept this form?')) {
@@ -309,8 +392,8 @@ const handleAction = async (action) => {
                     ✓ Accept Form
                   </button>
                 )}
-                {/* Reject button for all allowed roles */}
-                {rolePermissions[userRole]?.reject && (
+                {/* Reject button for all allowed roles and when not final */}
+                {rolePermissions[userRole]?.reject && !isFinal && (
                   <button
                     onClick={() => {
                       if (!remarks.trim()) {
@@ -337,8 +420,8 @@ const handleAction = async (action) => {
                     ✗ Reject Form
                   </button>
                 )}
-                {/* Request Edit button for all allowed roles */}
-                {rolePermissions[userRole]?.requestEdit && (
+                {/* Request Edit button for all allowed roles and when not final */}
+                {rolePermissions[userRole]?.requestEdit && !isFinal && (
                   <button
                     onClick={() => {
                       if (!remarks.trim()) {
@@ -388,6 +471,7 @@ const handleAction = async (action) => {
                   fontFamily: 'inherit',
                   background: '#f8fafc'
                 }}
+                disabled={isFinal}
               />
             </div>
 
@@ -407,6 +491,7 @@ const handleAction = async (action) => {
                   fontSize: '0.9rem',
                   background: '#f8fafc'
                 }}
+                disabled={isFinal}
               >
                 <option value="">Select person to forward</option>
                 {FORWARD_OPTIONS.map(opt => (
@@ -414,7 +499,7 @@ const handleAction = async (action) => {
                 ))}
               </select>
 
-              {forwardTo && (
+              {forwardTo && !isFinal && (
                 <button
                   onClick={() => {
                     if (!remarks) {

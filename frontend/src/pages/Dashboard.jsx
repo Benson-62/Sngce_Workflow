@@ -694,8 +694,15 @@ function Dashboard() {
   };
 
   useEffect(() => {
-  const token = jwtDecode(localStorage.getItem('token'));
-  if (!token) {
+  const tokenString = localStorage.getItem('token');
+  if (!tokenString) {
+    navigate('/login');
+    return;
+  }
+  let token;
+  try {
+    token = jwtDecode(tokenString);
+  } catch {
     navigate('/login');
     return;
   }
@@ -719,9 +726,11 @@ function Dashboard() {
 
   // Function for other roles to fetch forms without year and div
   const fetchReceived = async () => {
-
     try {
-      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}`);
+      const params = new URLSearchParams();
+      params.set('role', role);
+      if (department) params.set('department', department);
+      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?${params.toString()}`);
       console.log(res)
       setReceivedSubmissions(res.data || []);
     } catch (err) {
@@ -751,8 +760,13 @@ function Dashboard() {
         fetchReceived(); // Use the regular fetch for non-FA users
       }
     } catch (err) {
-      console.error('Error fetching faculty advisor:', err);
-      setErrorReceived('Failed to fetch faculty advisor');
+      // If no advisor assignments exist, fall back to regular received fetch
+      if (err?.response?.status === 404) {
+        fetchReceived();
+      } else {
+        console.error('Error fetching faculty advisor:', err);
+        setErrorReceived('Failed to fetch faculty advisor');
+      }
     }
   };
       
@@ -786,7 +800,7 @@ function Dashboard() {
           setLoading(false);
         }
       };
-      if ( token === 'facultyAdvisor' || token.role === 'FacultyAdvisor' || token.role === 'facultyadvisor') {
+      if ((role || '').toLowerCase() === 'facultyadvisor') {
         fetchFA();
       } else {
         fetchReceived();

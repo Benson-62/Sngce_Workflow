@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const statusLabels = {
   awaiting: 'Awaiting',
@@ -39,6 +41,7 @@ export default function SubmissionView() {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
+  const letterRef = useRef(null);
   
   // Form action states
   const [remarks, setRemarks] = useState('');
@@ -201,6 +204,65 @@ export default function SubmissionView() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 14;
+
+      if (letterRef.current) {
+        const canvas = await html2canvas(letterRef.current, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = pageWidth - margin * 2;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin, margin, imgWidth, Math.min(imgHeight, pageHeight - margin * 2));
+      }
+
+      // Add history page
+      doc.addPage();
+      let y = margin;
+      doc.setFontSize(16);
+      doc.text('Form Roadmap & Remarks', margin, y);
+      y += 8;
+      doc.setDrawColor(200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 8;
+      doc.setFontSize(12);
+
+      const lines = [];
+      lines.push(`Form: #${submission.formNo || submission._id}`);
+      lines.push(`Subject: ${submission.subject}`);
+      lines.push(`Department: ${submission.department}`);
+      lines.push(`Submitted By: ${submission.submittedBy}`);
+      lines.push(`Status: ${submission.status}`);
+      lines.push('');
+      lines.push('History:');
+      (submission.history || []).forEach((h, idx) => {
+        const ts = h.timestamp ? new Date(h.timestamp).toLocaleString() : '';
+        const header = `${idx + 1}. [${ts}] ${h.by || 'system'} - ${h.action || ''}`;
+        lines.push(header);
+        if (h.remarks) lines.push(`   Remarks: ${h.remarks}`);
+        lines.push('');
+      });
+
+      const content = doc.splitTextToSize(lines.join('\n'), pageWidth - margin * 2);
+      content.forEach((line) => {
+        if (y > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += 6;
+      });
+
+      doc.save(`form_${submission.formNo || submission._id}_roadmap.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate PDF');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40, gap: 24 }}>
       {/* Status Bar */}
@@ -214,6 +276,17 @@ export default function SubmissionView() {
       <div style={{ display: 'flex', gap: 24, flex: 1, maxWidth: 1200 }}>
       {/* Letter Format */}
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px #eee', padding: 40, minWidth: 400, flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div />
+          {(currentUser && ['Principal','principal','HOD','hod','FacultyAdvisor','facultyadvisor'].includes(currentUser.role)) && (
+            <button
+              onClick={handleDownloadPdf}
+              style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 12px', fontWeight: 600 }}
+            >
+              ⬇️ Download PDF
+            </button>
+          )}
+        </div>
         <div style={{ textAlign: 'right', marginBottom: 16 }}>
           <div><b>Date:</b> {submission.createdAt ? new Date(submission.createdAt).toLocaleString() : ''}</div>
           <div><b>No:</b> {submission.formNo || submission._id}</div>
@@ -225,7 +298,7 @@ export default function SubmissionView() {
         <div style={{ marginBottom: 16 }}>
           <div><b>Subject:</b> {submission.subject}</div>
         </div>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }} ref={letterRef}>
           <div>Respected Sir/Madam,</div>
           <div style={{ marginTop: 16, marginLeft: 32 }}>{submission.details}</div>
         </div>

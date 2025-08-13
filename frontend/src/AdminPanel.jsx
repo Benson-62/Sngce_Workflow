@@ -80,6 +80,43 @@ function AdminPanel() {
     }
   };
 
+  // Edit User state and actions
+  const [editingEmail, setEditingEmail] = useState(null);
+  const [editValues, setEditValues] = useState({ fName: '', lName: '', role: '', department: '', year: '', div: '' });
+
+  const startEditUser = (user) => {
+    setEditingEmail(user.email);
+    setEditValues({
+      fName: user.fName || '',
+      lName: user.lName || '',
+      role: user.role || 'Student',
+      department: user.department || 'CSE',
+      year: user.year ?? '',
+      div: user.div || ''
+    });
+  };
+
+  const cancelEditUser = () => {
+    setEditingEmail(null);
+    setEditValues({ fName: '', lName: '', role: 'Student', department: 'CSE', year: '', div: '' });
+  };
+
+  const saveEditUser = async (email) => {
+    try {
+      const payload = { email, updates: { ...editValues } };
+      // Convert empty year to undefined
+      if (payload.updates.year === '') delete payload.updates.year;
+      const res = await axios.put('http://localhost:3096/updateUser', payload);
+      const updated = res.data;
+      setUsers(prev => prev.map(u => (u.email === email ? { ...u, ...updated } : u)));
+      cancelEditUser();
+      alert('User updated');
+    } catch (err) {
+      console.error('Failed updating user', err);
+      alert(err.response?.data?.message || 'Failed to update user');
+    }
+  };
+
   // Add User functionality
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -529,19 +566,83 @@ function AdminPanel() {
                     <th>Email</th>
                     <th>Role</th>
                     <th>Department</th>
+                    <th>Year</th>
+                    <th>Div</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map(u => (
                     <tr key={u.email} style={{ background: u.role === 'Admin' ? '#e0e7ef' : 'inherit' }}>
-                      <td>{u.fName || '-'} {u.lName || ''}</td>
-                      <td>{u.email}</td>
-                      <td>{u.role}</td>
-                      <td>{u.department || 'N/A'}</td>
                       <td>
-                        {u.role !== 'Admin' && (
-                          <button className="admin-btn" onClick={() => handleDeleteUser(u.email)}>Delete</button>
+                        {editingEmail === u.email ? (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <input value={editValues.fName} onChange={e => setEditValues(v => ({ ...v, fName: e.target.value }))} style={{ width: 100 }} />
+                            <input value={editValues.lName} onChange={e => setEditValues(v => ({ ...v, lName: e.target.value }))} style={{ width: 100 }} />
+                          </div>
+                        ) : (
+                          <>{u.fName || '-'} {u.lName || ''}</>
+                        )}
+                      </td>
+                      <td>{u.email}</td>
+                      <td>
+                        {editingEmail === u.email ? (
+                          <select value={editValues.role} onChange={e => setEditValues(v => ({ ...v, role: e.target.value }))}>
+                            <option value="Student">Student</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="FacultyAdvisor">Faculty Advisor</option>
+                            <option value="HOD">HOD</option>
+                            <option value="Principal">Principal</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        ) : (
+                          u.role
+                        )}
+                      </td>
+                      <td>
+                        {editingEmail === u.email ? (
+                          <select value={editValues.department} onChange={e => setEditValues(v => ({ ...v, department: e.target.value }))}>
+                            <option value="CSE">CSE</option>
+                            <option value="NASB">NASB</option>
+                            <option value="ECE">ECE</option>
+                            <option value="EEE">EEE</option>
+                            <option value="ME">ME</option>
+                            <option value="CE">CE</option>
+                            <option value="AI">AI</option>
+                            <option value="CS">CS</option>
+                            <option value="MCA">MCA</option>
+                          </select>
+                        ) : (
+                          u.department || 'N/A'
+                        )}
+                      </td>
+                      <td>
+                        {editingEmail === u.email ? (
+                          <input value={editValues.year} onChange={e => setEditValues(v => ({ ...v, year: e.target.value }))} style={{ width: 60 }} />
+                        ) : (
+                          u.year ?? ''
+                        )}
+                      </td>
+                      <td>
+                        {editingEmail === u.email ? (
+                          <input value={editValues.div} onChange={e => setEditValues(v => ({ ...v, div: e.target.value }))} style={{ width: 60 }} />
+                        ) : (
+                          u.div || ''
+                        )}
+                      </td>
+                      <td>
+                        {editingEmail === u.email ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button className="admin-btn" style={{ background: '#22c55e' }} onClick={() => saveEditUser(u.email)}>Save</button>
+                            <button className="admin-btn" style={{ background: '#6b7280' }} onClick={cancelEditUser}>Cancel</button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button className="admin-btn" onClick={() => startEditUser(u)}>Edit</button>
+                            {u.role !== 'Admin' && (
+                              <button className="admin-btn" onClick={() => handleDeleteUser(u.email)}>Delete</button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

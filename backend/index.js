@@ -220,6 +220,69 @@ app.post('/createAccount', async (req, res) => {
   }
 });
 
+// Update user details
+app.put('/updateUser', async (req, res) => {
+  const { email, updates } = req.body;
+  if (!email || !updates || typeof updates !== 'object') {
+    return res.status(400).send({ message: 'Email and updates object are required.' });
+  }
+
+  try {
+    const allowedRoles = new Set(['Student', 'Faculty', 'Principal', 'Manager', 'HOD', 'FacultyAdvisor', 'Admin']);
+    const allowedDepartments = new Set(['CSE', 'NASB', 'ECE', 'EEE', 'ME', 'CE', 'AI', 'CS', 'MCA']);
+
+    const changes = {};
+    if (typeof updates.fName === 'string') changes.fName = updates.fName.trim();
+    if (typeof updates.lName === 'string') changes.lName = updates.lName.trim();
+    if (typeof updates.role === 'string') {
+      if (!allowedRoles.has(updates.role)) {
+        return res.status(400).send({ message: `Invalid role: ${updates.role}` });
+      }
+      changes.role = updates.role;
+    }
+    if (typeof updates.department === 'string') {
+      if (!allowedDepartments.has(updates.department)) {
+        return res.status(400).send({ message: `Invalid department: ${updates.department}` });
+      }
+      changes.department = updates.department;
+    }
+    if (updates.year !== undefined) {
+      const yearNum = Number(updates.year);
+      if (!Number.isFinite(yearNum)) {
+        return res.status(400).send({ message: 'year must be a number' });
+      }
+      changes.year = yearNum;
+    }
+    if (updates.div !== undefined) {
+      changes.div = String(updates.div);
+    }
+    if (typeof updates.password === 'string' && updates.password.length > 0) {
+      changes.password = await bcrypt.hash(updates.password, 10);
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return res.status(400).send({ message: 'No valid fields to update.' });
+    }
+
+    const updated = await logmodel.findOneAndUpdate(
+      { email },
+      { $set: changes },
+      { new: true }
+    ).lean();
+
+    if (!updated) {
+      return res.status(404).send({ message: 'User not found' });
+    }
+
+    // Remove password from response
+    delete updated.password;
+    res.status(200).send(updated);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).send({ message: 'Failed to update user', error: error.message });
+  }
+});
+
 // Bulk create users from an array of user objects
 app.post('/bulkCreateUsers', async (req, res) => {
   const { users } = req.body;
@@ -376,6 +439,74 @@ app.get('/getFormsForUser', async (req, res) => {
   }
 });
 
+// Archived forms (final status) for a user
+app.get('/getArchivedForms', async (req, res) => {
+  const { email, role } = req.query;
+  if (!email || !role) {
+    return res.status(400).send({ message: 'Missing required parameters: email, role' });
+  }
+
+  try {
+    // Pull user context for department/year/div filtering
+    const user = await logmodel.findOne({ email }).lean();
+    const userDepartment = user?.department;
+    const userYear = user?.year;
+    const userDiv = user?.div;
+
+    const finalStatuses = ['accepted', 'rejected'];
+
+    // 1. Forms submitted by this user that have final status
+    const [submittedStudent, submittedFaculty] = await Promise.all([
+      sFormModel.find({ submittedBy: email, status: { $in: finalStatuses } }).lean(),
+      fFormModel.find({ submittedBy: email, status: { $in: finalStatuses } }).lean(),
+    ]);
+
+    const submitted = [
+      ...submittedStudent.map(s => ({ ...s, owner: 'student', type: 'student', category: 'submitted' })),
+      ...submittedFaculty.map(f => ({ ...f, owner: 'staff', type: 'faculty', category: 'submitted' })),
+    ];
+
+    // 2. Forms received by this user role that have final status
+    let received = [];
+    const normalizedRole = (role || '').toString();
+
+    if (normalizedRole.toLowerCase() === 'student') {
+      // Students do not receive forms; only submitted applies
+      received = [];
+    } else {
+      // Faculty/Staff: filter by role and user context
+      const facultyReceived = await fFormModel.find({
+        to: normalizedRole,
+        ...(userDepartment ? { department: userDepartment } : {}),
+        status: { $in: finalStatuses },
+      }).lean();
+
+      const allStudentFinal = await sFormModel.find({ status: { $in: finalStatuses } }).lean();
+      const studentReceived = allStudentFinal.filter(form => {
+        const toArray = Array.isArray(form.to) ? form.to : [form.to];
+        const isRecipient = toArray.includes(normalizedRole) && (
+          (normalizedRole === 'HOD' && form.department === userDepartment) ||
+          (normalizedRole === 'FacultyAdvisor' && form.department === userDepartment && (userYear == null || form.year == userYear) && (userDiv == null || form.div === userDiv)) ||
+          (!['HOD', 'FacultyAdvisor'].includes(normalizedRole))
+        );
+        return isRecipient;
+      });
+
+      received = [
+        ...facultyReceived.map(f => ({ ...f, owner: 'staff', type: 'faculty', category: 'received' })),
+        ...studentReceived.map(s => ({ ...s, owner: 'student', type: 'student', category: 'received' })),
+      ];
+    }
+
+    // Combine and sort by date desc
+    const response = [...submitted, ...received].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.status(200).send(response);
+  } catch (error) {
+    console.error('Error in /getArchivedForms:', error);
+    res.status(500).send({ message: 'An error occurred while fetching archived forms', error: error.message });
+  }
+});
+
 // Endpoint to get received forms for a user
 /**
  * GET /getReceivedFormsForUser
@@ -409,8 +540,11 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
       // Principal sees all faculty forms addressed to them
       facultyReceived = await fFormModel.find({ to: { $in: [role, 'Principal', 'principal'] } });
     } else {
-      // For other roles, check both role and department
-      const facultyQuery = { to: role, department : department };
+      // For other roles, match role; restrict by department only for HOD
+      const facultyQuery = { to: role };
+      if ((role === 'HOD' || role === 'hod') && department) {
+        facultyQuery.department = department;
+      }
       facultyReceived = await fFormModel.find(facultyQuery);
     }
 
@@ -570,6 +704,15 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
     } else {
       // This now correctly handles any other invalid type
       return res.status(400).send({ message: `Invalid form type: ${formType}` });
+    }
+
+    // Fetch current form to enforce completion rules
+    const currentForm = await model.findById(formId).lean();
+    if (!currentForm) {
+      return res.status(404).send({ message: 'Form not found with the provided formId.' });
+    }
+    if (currentForm.status === 'accepted' || currentForm.status === 'rejected') {
+      return res.status(400).send({ message: 'This form is already completed and cannot be modified.' });
     }
 
     const updateFields = {};
