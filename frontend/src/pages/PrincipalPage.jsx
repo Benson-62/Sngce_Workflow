@@ -12,6 +12,19 @@ const statusColors = {
   accepted: '#22c55e', // green
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
+  edit: '#f59e0b', // orange - needs editing/revision
+};
+
+// Role permissions map
+const rolePermissions = {
+  Principal: { accept: true, reject: true, requestEdit: true },
+  principal: { accept: true, reject: true, requestEdit: true },
+  Manager: { accept: true, reject: true, requestEdit: true },
+  manager: { accept: true, reject: true, requestEdit: true },
+  HOD: { accept: false, reject: true, requestEdit: true },
+  hod: { accept: false, reject: true, requestEdit: true },
+  FacultyAdvisor: { accept: false, reject: true, requestEdit: true },
+  facultyadvisor: { accept: false, reject: true, requestEdit: true },
 };
 
 function PrincipalPage() {
@@ -27,6 +40,7 @@ function PrincipalPage() {
   const [remarks, setRemarks] = useState('');
   const [forwardTo, setForwardTo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userRole, setUserRole] = useState('');
 
   // Handler for input changes
   const handleEditChange = (formId, field, value) => {
@@ -46,11 +60,12 @@ function PrincipalPage() {
     const { remarks, status } = editRows[formId] || {};
     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
     try {
+      const token = jwtDecode(localStorage.getItem('token'));
       const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
         formId,
         formType,
         remarks,
-        userRole,
+        by: token.role,
         status,
       });
       // Optimistically update the receivedSubmissions state
@@ -128,7 +143,7 @@ function PrincipalPage() {
       return;
     }
     if (window.confirm('Are you sure you want to request edits for this form?')) {
-      handleFormAction('request_edit', remarks);
+      handleFormAction('edit', remarks);
     }
   };
 
@@ -181,7 +196,7 @@ function PrincipalPage() {
       navigate('/login');
       return;
     }
-    
+    setUserRole(token.role);
     // Check if user is actually a principal
     if (token.role !== 'Principal' && token.role !== 'principal') {
       navigate('/dashboard');
@@ -195,8 +210,15 @@ function PrincipalPage() {
     
     const fetchReceived = async () => {
       try {
-        let url = `http://localhost:3096/getReceivedFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`;
+        // Principal needs role and potentially department from token
+        let url = `http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
         
+        // Add department if available in token (though Principal should see all departments)
+        if (token.department) {
+          url += `&department=${encodeURIComponent(token.department)}`;
+        }
+        
+        console.log('Fetching forms for Principal with URL:', url);
         const res = await axios.get(url);
         console.log('Received forms data for Principal:', res.data);
         setReceivedSubmissions(res.data || []);
@@ -254,13 +276,13 @@ function PrincipalPage() {
             Form History
           </button>
         </div>
-        <button
+        {/* <button
           onClick={handleRefresh}
           className="refresh-btn"
           title="Refresh data"
         >
           🔄 Refresh
-        </button>
+        </button> */}
       </div>
 
       {viewMode === 'current' ? (
@@ -430,59 +452,68 @@ function PrincipalPage() {
                   </h4>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                    <button
-                      onClick={handleAccept}
-                      disabled={isSubmitting}
-                      style={{
-                        background: '#22c55e',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '10px 16px',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                        opacity: isSubmitting ? 0.6 : 1
-                      }}
-                    >
-                      ✓ Accept Form
-                    </button>
+                    {/* Accept button only for Principal/Manager */}
+                    {rolePermissions[userRole]?.accept && (
+                      <button
+                        onClick={handleAccept}
+                        disabled={isSubmitting}
+                        style={{
+                          background: '#22c55e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '10px 16px',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                          opacity: isSubmitting ? 0.6 : 1
+                        }}
+                      >
+                        ✓ Accept Form
+                      </button>
+                    )}
                     
-                    <button
-                      onClick={handleReject}
-                      disabled={isSubmitting}
-                      style={{
-                        background: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '10px 16px',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                        opacity: isSubmitting ? 0.6 : 1
-                      }}
-                    >
-                      ✗ Reject Form
-                    </button>
+                    {/* Reject button for all allowed roles */}
+                    {rolePermissions[userRole]?.reject && (
+                      <button
+                        onClick={handleReject}
+                        disabled={isSubmitting}
+                        style={{
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '10px 16px',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                          opacity: isSubmitting ? 0.6 : 1
+                        }}
+                      >
+                        ✗ Reject Form
+                      </button>
+                    )}
                     
-                    <button
-                      onClick={handleRequestEdit}
-                      disabled={isSubmitting}
-                      style={{
-                        background: '#f59e0b',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 6,
-                        padding: '10px 16px',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                        opacity: isSubmitting ? 0.6 : 1
-                      }}
-                    >
-                      ✏️ Request Edit
-                    </button>
+                    {/* Request Edit button for all allowed roles */}
+                    {rolePermissions[userRole]?.requestEdit && (
+                      <button
+                        onClick={handleRequestEdit}
+                        disabled={isSubmitting}
+                        style={{
+                          background: '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '10px 16px',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                          opacity: isSubmitting ? 0.6 : 1
+                        }}
+                      >
+                        ✏️ Request Edit
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -628,6 +659,7 @@ function PrincipalPage() {
                             <option value="forwarded">Forwarded</option>
                             <option value="accepted">Accepted</option>
                             <option value="rejected">Rejected</option>
+                            <option value="edit">Request Edit</option>
                           </select>
                         </div>
                         
