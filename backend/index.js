@@ -220,6 +220,95 @@ app.post('/createAccount', async (req, res) => {
   }
 });
 
+// Bulk create users from an array of user objects
+app.post('/bulkCreateUsers', async (req, res) => {
+  const { users } = req.body;
+
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).send({ message: 'Request body must include a non-empty users array.' });
+  }
+
+  const allowedRoles = new Set(['Student', 'Faculty', 'Principal', 'Manager', 'HOD', 'FacultyAdvisor', 'Admin']);
+  const allowedDepartments = new Set(['CSE', 'NASB', 'ECE', 'EEE', 'ME', 'CE', 'AI', 'CS', 'MCA']);
+
+  const roleMap = {
+    student: 'Student',
+    faculty: 'Faculty',
+    principal: 'Principal',
+    manager: 'Manager',
+    hod: 'HOD',
+    facultyadvisor: 'FacultyAdvisor',
+    'faculty advisor': 'FacultyAdvisor',
+    admin: 'Admin'
+  };
+
+  const deptMap = {
+    cse: 'CSE', nasb: 'NASB', ece: 'ECE', eee: 'EEE', me: 'ME', ce: 'CE', ai: 'AI', cs: 'CS', mca: 'MCA'
+  };
+
+  const created = [];
+  const failed = [];
+
+  for (const raw of users) {
+    try {
+      const fName = (raw.fName || '').toString().trim();
+      const lName = (raw.lName || '').toString().trim();
+      const email = (raw.email || '').toString().trim().toLowerCase();
+      const password = (raw.password || '').toString();
+      let role = (raw.role || '').toString().trim();
+      let department = (raw.department || '').toString().trim();
+      const div = raw.div ? raw.div.toString().trim() : undefined;
+      const year = raw.year !== undefined && raw.year !== null && raw.year !== '' ? Number(raw.year) : undefined;
+
+      if (!fName || !lName || !email || !password || !role || !department) {
+        failed.push({ email: email || raw.email || '', reason: 'Missing required fields' });
+        continue;
+      }
+
+      // Normalize role and department
+      const roleKey = role.toLowerCase();
+      if (roleMap[roleKey]) role = roleMap[roleKey];
+      // Capitalize single-word roles otherwise
+      if (!allowedRoles.has(role)) {
+        failed.push({ email, reason: `Invalid role: ${role}` });
+        continue;
+      }
+
+      const deptKey = department.toLowerCase();
+      if (deptMap[deptKey]) department = deptMap[deptKey];
+      if (!allowedDepartments.has(department)) {
+        failed.push({ email, reason: `Invalid department: ${department}` });
+        continue;
+      }
+
+      // Check duplicate
+      const existing = await logmodel.findOne({ email });
+      if (existing) {
+        failed.push({ email, reason: 'Email already exists' });
+        continue;
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const payload = { fName, lName, email, password: hashedPassword, role, department };
+      if (div) payload.div = div;
+      if (Number.isFinite(year)) payload.year = year;
+
+      const saved = await new logmodel(payload).save();
+      created.push({ email: saved.email });
+    } catch (err) {
+      console.error('Failed to create user from bulk:', err);
+      failed.push({ email: (raw && raw.email) || '', reason: 'Unexpected error' });
+    }
+  }
+
+  res.status(200).send({
+    createdCount: created.length,
+    failedCount: failed.length,
+    created,
+    failed
+  });
+});
+
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {

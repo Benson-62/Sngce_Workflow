@@ -66,6 +66,11 @@ function AdminPanel() {
     department: 'CSE'
   });
 
+  // CSV import state
+  const [csvUsers, setCsvUsers] = useState([]);
+  const [csvErrors, setCsvErrors] = useState([]);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+
   // User management actions
   const handleDeleteUser = (email) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
@@ -119,6 +124,114 @@ function AdminPanel() {
     const { name, value } = e.target;
     setNewUser(prev => ({ ...prev, [name]: value }));
   };
+
+  // CSV utilities
+  const expectedHeaders = ['fName','lName','email','password','role','department','div','year'];
+
+  const downloadCsvTemplate = () => {
+    const header = 'fName,lName,email,password,role,department,div,year\n';
+    const example = 'Jane,Doe,jane.doe@sngce.ac.in,TempPass123,Faculty,CSE,,\n';
+    const content = header + example;
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'users_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsv = (text) => {
+    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
+    if (lines.length === 0) return { rows: [], errors: ['Empty CSV'] };
+    const headerLine = lines[0];
+    const headers = headerLine.split(',').map(h => h.trim());
+    // Validate headers minimally (must include required ones)
+    const required = ['fName','lName','email','password','role','department'];
+    const missing = required.filter(h => !headers.includes(h));
+    if (missing.length > 0) {
+      return { rows: [], errors: [`Missing headers: ${missing.join(', ')}`] };
+    }
+    const rows = [];
+    const errors = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line || line.trim() === '') continue;
+      // Simple CSV split; assumes values do not contain embedded commas within quotes
+      const cols = line.split(',');
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = (cols[idx] || '').trim();
+      });
+      // Basic validation
+      if (!row.email || !row.password || !row.fName || !row.lName || !row.role || !row.department) {
+        errors.push(`Row ${i+1}: missing required fields`);
+        continue;
+      }
+      if (row.year && !/^\d+$/.test(row.year)) {
+        errors.push(`Row ${i+1}: year must be a number`);
+        continue;
+      }
+      rows.push({
+        fName: row.fName,
+        lName: row.lName,
+        email: row.email,
+        password: row.password,
+        role: row.role,
+        department: row.department,
+        div: row.div || undefined,
+        year: row.year ? Number(row.year) : undefined
+      });
+    }
+    return { rows, errors };
+  };
+
+  const handleCsvFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('Please select a .csv file');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target.result;
+      const { rows, errors } = parseCsv(text);
+      setCsvUsers(rows);
+      setCsvErrors(errors);
+      if (errors.length > 0) {
+        alert(`Found ${errors.length} issue(s) in CSV. Please fix and re-upload.`);
+      } else if (rows.length > 0) {
+        if (window.confirm(`Upload ${rows.length} users now?`)) {
+          // inline upload without waiting for manual button
+          setIsUploadingCsv(true);
+          try {
+            const res = await axios.post('http://localhost:3096/bulkCreateUsers', { users: rows });
+            const data = res.data || {};
+            try {
+              const refreshed = await axios.get('http://localhost:3096/getAllUsers');
+              setUsers(refreshed.data || []);
+            } catch (_) {}
+            alert(`Import complete: ${data.createdCount || 0} created, ${data.failedCount || 0} failed.`);
+            setCsvUsers([]);
+            setCsvErrors([]);
+          } catch (error) {
+            console.error('Bulk upload failed', error);
+            alert('Bulk upload failed. Please try again.');
+          } finally {
+            setIsUploadingCsv(false);
+          }
+        }
+      }
+    };
+    reader.readAsText(file);
+    // reset input value so the same file can be reselected after edits
+    e.target.value = '';
+  };
+
+  // Removed manual upload button; uploading happens after selecting a valid CSV
 
   // Form management actions
   const handleDeleteForm = async (formId, formType) => {
@@ -195,17 +308,49 @@ function AdminPanel() {
             </div>
           )}
                   {section === 'users' && (
-            <div className="admin-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className="admin-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
                 <h2>User Management</h2>
-                <button 
-                  className="admin-btn" 
-                  onClick={() => setShowAddUserForm(!showAddUserForm)}
-                  style={{ background: '#22c55e' }}
-                >
-                  {showAddUserForm ? 'Cancel' : '+ Add User'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    className="admin-btn" 
+                    onClick={() => setShowAddUserForm(!showAddUserForm)}
+                    style={{ background: '#22c55e' }}
+                  >
+                    {showAddUserForm ? 'Cancel' : '+ Add User'}
+                  </button>
+                  <button 
+                    className="admin-btn" 
+                    type="button"
+                    onClick={downloadCsvTemplate}
+                    style={{ background: '#0ea5e9' }}
+                  >
+                    Download CSV Template
+                  </button>
+                  <label className="admin-btn" style={{ cursor: 'pointer', background: '#6366f1' }}>
+                    Upload CSV
+                    <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ display: 'none' }} />
+                  </label>
+                  
+                </div>
               </div>
+
+              {(csvUsers.length > 0 || csvErrors.length > 0) && (
+                <div style={{ background: '#f8fafc', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <span>Parsed users: <b>{csvUsers.length}</b></span>
+                    <span>Errors: <b style={{ color: csvErrors.length ? '#dc2626' : '#16a34a' }}>{csvErrors.length}</b></span>
+                  </div>
+                  {csvErrors.length > 0 && (
+                    <ul style={{ marginTop: '8px', color: '#b91c1c' }}>
+                      {csvErrors.slice(0, 5).map((er, idx) => (
+                        <li key={idx}>• {er}</li>
+                      ))}
+                      {csvErrors.length > 5 && <li>…and {csvErrors.length - 5} more</li>}
+                    </ul>
+                  )}
+                </div>
+              )}
               
               {showAddUserForm && (
                 <div style={{ 

@@ -87,32 +87,33 @@ function Navbar() {
         <span></span>
       </button>
       
+
       <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
-        {/* Hide Dashboard from Principal and Admin users */}
-        {!(userRole === 'Principal' || userRole === 'principal' || userRole === 'admin' || userRole === 'Admin') && (
-          <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
-        )}
-        <Link to="/ProfilePage" onClick={closeMobileMenu}>Profile</Link>
-        {/* Hide New Submission for Principal users since they only review forms */}
-        {!(userRole === 'Principal' || userRole === 'principal') && (
-          <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
-        )}
-        {userRole === 'admin' && (
-          <>
-            <Link to="/admin" onClick={closeMobileMenu}>Admin</Link>
-            <Link to="/admin/users" onClick={closeMobileMenu}>Users</Link>
-            <Link to="/admin/logs" onClick={closeMobileMenu}>Logs</Link>
-          </>
-        )}
-        {/* Principal Panel - Only show for Principal role */}
-        {(userRole === 'Principal' || userRole === 'principal') && isLoggedIn && (
-          <Link to="/principal" onClick={closeMobileMenu}>Principal Panel</Link>
-        )}
         {isLoggedIn ? (
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        ) : null 
-          // (<button onClick={() => navigate('/login')} className="logout-btn">Login</button>)
-        }
+          <>
+            {/* Hide Dashboard from Principal and Admin users */}
+            {!(userRole === 'Principal' || userRole === 'principal' || userRole === 'admin' || userRole === 'Admin') && (
+              <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
+            )}
+            <Link to="/ProfilePage" onClick={closeMobileMenu}>Profile</Link>
+            {/* Hide New Submission for Principal users since they only review forms */}
+            {!(userRole === 'Principal' || userRole === 'principal') && (
+              <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
+            )}
+            {userRole === 'admin' && (
+              <>
+                <Link to="/admin" onClick={closeMobileMenu}>Admin</Link>
+                <Link to="/admin/users" onClick={closeMobileMenu}>Users</Link>
+                <Link to="/admin/logs" onClick={closeMobileMenu}>Logs</Link>
+              </>
+            )}
+            {/* Principal Panel - Only show for Principal role */}
+            {(userRole === 'Principal' || userRole === 'principal') && (
+              <Link to="/principal" onClick={closeMobileMenu}>Principal Panel</Link>
+            )}
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
+          </>
+        ) : null}
       </div>
     </nav>
   );
