@@ -171,9 +171,9 @@ app.get('/getFFormById/:id', async (req, res) => {
 });
 
 app.post('/createFacultyAdvisor', async (req,res)=> {
-  const { year, department, facultyNames} = req.body;
+  const { year, department, facultyNames,div} = req.body;
   try {
-    await fAdvisorModel({year, department, facultyNames}).save();
+    await fAdvisorModel({year, department, facultyNames,div}).save();
     console.log("Saved to DB!");
     res.send("Saved to DB!");
   } catch (error){
@@ -209,10 +209,15 @@ app.post('/studentFormSubmission', async (req, res) => {
 });
 
 app.post('/createAccount', async (req, res) => {
-  const { fName, lName, email, password, role, department } = req.body;
+  const { fName, lName, email, password, role, department,year, div } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   try {
-    await logmodel({ fName, lName, email, password: hashedPassword, role , department}).save();
+    if(!year || !div){
+      console.log("No year or div provided, creating account without them");
+      await logmodel({ fName, lName, email, password: hashedPassword, role , department}).save();
+    }else{
+      await logmodel({ fName, lName, email, password: hashedPassword, role , department, year, div}).save();
+    }
     res.send("User added");
   } catch (error) {
     console.log(error);
