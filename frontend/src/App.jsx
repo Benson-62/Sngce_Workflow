@@ -13,6 +13,7 @@ import SubmissionView from './pages/SubmissionView';
 import PrincipalPage from './pages/PrincipalPage';
 import ProfilePage from './pages/ProfilePage';
 import MySubmission from './pages/MySubmission';
+import WelcomeAnimation from './pages/WelcomeAnimation';
 import './App.css';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
           <Route path="/principal" element={<PrincipalPage />} />
           <Route path="/ProfilePage" element={<ProfilePage />} />
           <Route path="/my-submission" element={<MySubmission />} />
+          <Route path="/welcome" element={<WelcomeAnimation />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
