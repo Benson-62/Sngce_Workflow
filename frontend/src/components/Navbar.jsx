@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
+import NotificationBell from './NotificationBell';
 import './Navbar.css';
 
 function Navbar() {
@@ -15,7 +16,7 @@ function Navbar() {
     const handleStorage = () => {
       const token = localStorage.getItem('token');
       setIsLoggedIn(!!token);
-      
+
       // Get role from localStorage first, then fallback to JWT token
       let role = localStorage.getItem('userRole');
       if (!role && token) {
@@ -28,7 +29,7 @@ function Navbar() {
           console.error('Error decoding token:', error);
         }
       }
-      
+
       console.log('Navbar: Current user role:', role); // Debug log
       setUserRole(role);
     };
@@ -65,9 +66,9 @@ function Navbar() {
     <nav className="navbar">
       <div className="nav-brand">
         <Link to="/dashboard" className="brand-link">
-          <img 
-            src="/src/assets/sngce.jpg" 
-            alt="Workflow Logo" 
+          <img
+            src="/src/assets/sngce.jpg"
+            alt="Workflow Logo"
             className="nav-logo"
             onError={(e) => {
               e.target.style.display = 'none';
@@ -76,8 +77,8 @@ function Navbar() {
           <span className="brand-text">Workflow</span>
         </Link>
       </div>
-      
-      <button 
+
+      <button
         className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`}
         onClick={toggleMobileMenu}
         aria-label="Toggle mobile menu"
@@ -86,7 +87,7 @@ function Navbar() {
         <span></span>
         <span></span>
       </button>
-      
+
 
       <div className={`nav-links ${isMobileMenuOpen ? 'active' : ''}`}>
         {isLoggedIn ? (
@@ -111,6 +112,7 @@ function Navbar() {
             {(userRole === 'Principal' || userRole === 'principal') && (
               <Link to="/principal" onClick={closeMobileMenu}>Principal Panel</Link>
             )}
+            <NotificationBell />
             <button onClick={handleLogout} className="logout-btn">Logout</button>
           </>
         ) : null}
