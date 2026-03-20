@@ -211,10 +211,19 @@ app.post('/createFacultyAdvisor', async (req, res) => {
 
 
 app.post('/facultyFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment, submittedBy } = req.body;
+  const { date, to, category, subject, subjectElaboration, others, department, details, attachment, attachments, submittedBy } = req.body;
   console.log(req.body);
   try {
-    const savedForm = await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    const finalAttachments = attachments || (attachment ? [attachment] : []);
+    const savedForm = await fFormModel({ 
+      date, to, 
+      category: category || subject, 
+      subject, subjectElaboration, 
+      others, department, details, 
+      attachment: attachment || (attachments && attachments.length > 0 ? attachments[0] : null),
+      attachments: finalAttachments, 
+      submittedBy 
+    }).save();
     console.log("form submitted!")
 
     // Notify Recipient
@@ -233,10 +242,19 @@ app.post('/facultyFormSubmission', async (req, res) => {
   }
 });
 app.post('/studentFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment, submittedBy, div, year } = req.body;
+  const { date, to, category, subject, subjectElaboration, others, department, details, attachment, attachments, submittedBy, div, year } = req.body;
   console.log(req.body);
   try {
-    const savedForm = await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy, div, year }).save();
+    const finalAttachments = attachments || (attachment ? [attachment] : []);
+    const savedForm = await sFormModel({ 
+      date, to, 
+      category: category || subject, 
+      subject, subjectElaboration, 
+      others, department, details, 
+      attachment: attachment || (attachments && attachments.length > 0 ? attachments[0] : null),
+      attachments: finalAttachments, 
+      submittedBy, div, year 
+    }).save();
     console.log("form submitted!")
 
     await notifyRecipients(savedForm, 'student', to, department);
@@ -595,6 +613,10 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
         facultyReceived = deptFacultyForms;
         studentReceived = deptStudentForms;
       }
+    } else if (role === 'Manager' || role === 'manager') {
+      const pendingStatuses = ['awaiting', 'forwarded', 'edit'];
+      facultyReceived = await fFormModel.find({ status: { $in: pendingStatuses } });
+      studentReceived = await sFormModel.find({ status: { $in: pendingStatuses } });
     } else if (role === 'Principal' || role === 'principal') {
       // Principal sees all faculty forms addressed to them
       facultyReceived = await fFormModel.find({ to: { $in: [role, 'Principal', 'principal'] } });
@@ -638,9 +660,10 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
       });
     }
 
+    const toPlain = doc => (typeof doc.toObject === 'function' ? doc.toObject() : doc);
     res.send([
-      ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
-      ...studentReceived.map(s => ({ ...s.toObject(), owner: 'student' }))
+      ...facultyReceived.map(f => ({ ...toPlain(f), owner: 'staff' })),
+      ...studentReceived.map(s => ({ ...toPlain(s), owner: 'student' }))
     ]);
 
   } catch (error) {
@@ -680,6 +703,34 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 // });
 
 // --- Notification Endpoints ---
+
+// Send Reminder
+app.post('/sendReminder', async (req, res) => {
+  const { formId, formType, submitterEmail, currentHandlerRoles, department } = req.body;
+  try {
+    // Notify the current handler roles based on the pending status
+    if (currentHandlerRoles && Array.isArray(currentHandlerRoles)) {
+      for (const role of currentHandlerRoles) {
+        // Here we ideally send to specific emails, for now send role-based message or find users by role
+        const users = await logmodel.find({ role: new RegExp(`^${role}$`, 'i'), ...(role.toLowerCase() === 'hod' || role.toLowerCase() === 'facultyadvisor' ? { department } : {}) }).lean();
+        for (const user of users) {
+          await createNotification(user.email, `Reminder: A form submitted by ${submitterEmail} is pending your approval.`, formId, formType);
+        }
+      }
+    }
+    
+    // Notify Manager about the delay
+    const managers = await logmodel.find({ role: new RegExp('^Manager$', 'i') }).lean();
+    for (const manager of managers) {
+      await createNotification(manager.email, `Escalation: Form ${formId} from ${submitterEmail} is pending and a reminder was sent.`, formId, formType);
+    }
+
+    res.status(200).send({ message: 'Reminders sent successfully' });
+  } catch (error) {
+    console.error('Error sending reminder:', error);
+    res.status(500).send({ message: 'Failed to send reminder', error: error.message });
+  }
+});
 
 // Get notifications for a user
 app.get('/notifications', async (req, res) => {
@@ -895,6 +946,31 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
   }
 });
 
+// Endpoint to send a reminder notification
+app.post('/sendReminder', async (req, res) => {
+  const { formId, formType, submitterEmail, currentHandlerRoles, department } = req.body;
+
+  if (!formId || !formType || !submitterEmail || !currentHandlerRoles) {
+    return res.status(400).send({ message: 'Missing required parameters.' });
+  }
+
+  try {
+    const rolesArray = Array.isArray(currentHandlerRoles) ? currentHandlerRoles : [currentHandlerRoles];
+    const currentHandlerRole = rolesArray[rolesArray.length - 1]; // Notify the last one in the 'to' array
+
+    // 1. Send notification to the current handler
+    await notifyRecipients({ _id: formId }, formType, currentHandlerRole, department);
+
+    // 2. Send notification to Managers (Higher Authority)
+    await notifyRecipients({ _id: formId }, formType, 'Manager', undefined);
+
+    res.status(200).send({ message: 'Reminders sent successfully.' });
+  } catch (error) {
+    console.error("Error sending reminders:", error);
+    res.status(500).send({ message: 'Failed to send reminders.', error: error.message });
+  }
+});
+
 // Helper to resolve recipients and send
 async function notifyRecipients(form, formType, targetRole, department) {
   try {
@@ -1067,8 +1143,4 @@ app.get('/getForwardedFormsForUser', async (req, res) => {
     console.error('Error fetching forwarded forms:', error);
     res.status(500).send({ message: 'An error occurred while fetching forwarded forms', error: error.message });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Port is up and running at ${PORT}`);
 });

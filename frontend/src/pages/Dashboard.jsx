@@ -13,6 +13,8 @@ const statusColors = {
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
   edit: '#f59e0b', // orange - needs editing/revision
+  not_approved: '#f97316', // orange
+  cancelled: '#6b7280', // gray
 };
 
 // Actions component for better organization
@@ -274,6 +276,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 <tr>
                   <th>ID</th>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -292,6 +295,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                       <div style={{ fontSize: 12, color: '#666' }}>{submission.submittedBy}</div>
                     </td>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -356,6 +360,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
               <thead>
                 <tr>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -369,6 +374,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 {studentSubmissions.map((submission, idx) => (
                   <tr key={submission._id || submission.id || idx}>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -432,6 +438,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
               <thead>
                 <tr>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -445,6 +452,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 {staffSubmissions.map((submission, idx) => (
                   <tr key={submission._id || submission.id || idx}>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>

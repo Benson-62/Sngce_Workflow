@@ -15,9 +15,16 @@ const studentFormSchema = new mongoose.Schema({
         type: [String],
         required: true
     },
+    category: {
+        type: String,
+        required: true
+    },
     subject: {
         type: String,
         required: true
+    },
+    subjectElaboration: {
+        type: String
     },
     others: {
         type: String
@@ -34,9 +41,14 @@ const studentFormSchema = new mongoose.Schema({
         filename: { type: String},
         mimetype: { type: String}
     },
+    attachments: [{
+        file: { type: Buffer},
+        filename: { type: String},
+        mimetype: { type: String}
+    }],
     status : {
         type : String,
-        enum : ['awaiting', 'forwarded', 'accepted', 'rejected', 'edit'],
+        enum : ['awaiting', 'forwarded', 'accepted', 'rejected', 'edit', 'not_approved', 'cancelled'],
         default : 'awaiting'
     },
     submittedBy : {
@@ -77,11 +89,24 @@ const studentFormSchema = new mongoose.Schema({
 studentFormSchema.pre("save", async function (next) {
   if (this.isNew) {
     try {
-      const counter = await Counter.findByIdAndUpdate(
-        { _id: "studentFormId" },
-        { $inc: { seq: 1 } },
+      const now = new Date();
+      const currentYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      const currentFY = `${currentYear}-${currentYear + 1}`;
+
+      const counter = await Counter.findOneAndUpdate(
+        { _id: "globalFormId" },
+        {},
         { new: true, upsert: true }
       );
+
+      if (counter.financialYear !== currentFY) {
+        counter.financialYear = currentFY;
+        counter.seq = 1;
+      } else {
+        counter.seq += 1;
+      }
+      await counter.save();
+
       this.formNo = counter.seq;
       next();
     } catch (err) {
