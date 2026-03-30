@@ -266,6 +266,29 @@ app.post('/studentFormSubmission', async (req, res) => {
   }
 });
 
+// Change Password
+app.put('/changePassword', async (req, res) => {
+  const { email, currentPassword, newPassword } = req.body;
+  if (!email || !currentPassword || !newPassword) {
+    return res.status(400).send({ message: 'email, currentPassword, and newPassword are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).send({ message: 'New password must be at least 6 characters.' });
+  }
+  try {
+    const user = await logmodel.findOne({ email });
+    if (!user) return res.status(404).send({ message: 'User not found.' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).send({ message: 'Current password is incorrect.' });
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.status(200).send({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).send({ message: 'Failed to change password.', error: error.message });
+  }
+});
+
 app.post('/createAccount', async (req, res) => {
   const { fName, lName, email, password, role, department } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);

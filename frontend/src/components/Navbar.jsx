@@ -97,6 +97,7 @@ function Navbar() {
               <Link to="/dashboard" onClick={closeMobileMenu}>Dashboard</Link>
             )}
             <Link to="/ProfilePage" onClick={closeMobileMenu}>Profile</Link>
+            <Link to="/settings" onClick={closeMobileMenu}>Settings</Link>
             {/* Hide New Submission for Principal users since they only review forms */}
             {!(userRole === 'Principal' || userRole === 'principal') && (
               <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>

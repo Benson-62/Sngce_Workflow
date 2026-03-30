@@ -86,6 +86,13 @@ const studentFormSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// Indexes for fast dashboard queries
+studentFormSchema.index({ submittedBy: 1 });
+studentFormSchema.index({ currentHandler: 1, status: 1 });
+studentFormSchema.index({ department: 1, status: 1 });
+studentFormSchema.index({ status: 1 });
+studentFormSchema.index({ year: 1, div: 1 }); // For FacultyAdvisor lookups
+
 studentFormSchema.pre("save", async function (next) {
   if (this.isNew) {
     try {

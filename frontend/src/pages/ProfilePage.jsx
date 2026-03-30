@@ -7,12 +7,11 @@ const ProfilePage = () => {
     const [email, setEmail] = useState();
     const [department, setDepartment] = useState()
     useEffect(()=>{
-        var token = jwtDecode(localStorage.getItem('token'));
+        const token = jwtDecode(localStorage.getItem('token'));
         setRole(token.role)
         setEmail(token.email)
         setDepartment(token.department)
-        console.log(token)  
-    })
+    }, []) // ← run only once on mount
 
  
   return (
