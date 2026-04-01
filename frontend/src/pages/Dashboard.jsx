@@ -908,7 +908,7 @@ function Dashboard() {
 
       {viewMode === 'current' ? (
         <>
-          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
+          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} setSubmissions={setSubmissions} />
           <div style={{ marginTop: 48 }}>
             <div className="dashboard-header" style={{ marginBottom: 24 }}>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: 28}}>Received Submissions</h2>

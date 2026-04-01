@@ -1066,11 +1066,16 @@ async function notifyRecipients(form, formType, targetRole, department) {
 app.delete('/deleteForm', async (req, res) => {
   const { formId, formType, userEmail, userRole } = req.body;
 
-  console.log('Delete request:', { formId, formType, userEmail, userRole });
+  console.log('Delete request received:', { formId, formType, userEmail, userRole });
 
   // Input validation
   if (!formId || !formType || !userEmail || !userRole) {
     return res.status(400).send({ message: 'Missing required parameters: formId, formType, userEmail, userRole' });
+  }
+
+  // Validate formId is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(formId)) {
+    return res.status(400).send({ message: 'Invalid form ID format' });
   }
 
   try {
@@ -1080,24 +1085,28 @@ app.delete('/deleteForm', async (req, res) => {
     } else if (formType === 'faculty') {
       model = fFormModel;
     } else {
-      return res.status(400).send({ message: `Invalid form type: ${formType}` });
+      return res.status(400).send({ message: `Invalid form type: ${formType}. Must be 'student' or 'faculty'` });
     }
 
     // Find the form first
-    const form = await model.findById(formId);
+    const form = await model.findById(formId).lean();
     if (!form) {
       return res.status(404).send({ message: 'Form not found' });
     }
 
-    // Check if form status allows deletion (awaiting or edit)
-    if (form.status !== 'awaiting' && form.status !== 'edit' && !form.status) {
-      return res.status(400).send({ message: 'Only forms with "awaiting" or "edit" status can be deleted' });
+    console.log('Form found:', { status: form.status, submittedBy: form.submittedBy });
+
+    // Check if form status allows deletion (only 'awaiting' or 'edit' status)
+    if (form.status !== 'awaiting' && form.status !== 'edit') {
+      return res.status(400).send({ message: `Only forms with "awaiting" or "edit" status can be deleted. Current status: ${form.status}` });
     }
 
     // Check authorization:
     // 1. User can delete forms they submitted
-    // 2. User can delete forms that were sent to them (if they are a valid receiver)
+    // 2. Admin can delete any form
     const canDelete = form.submittedBy === userEmail || isValidReceiver(form, userEmail, userRole);
+
+    console.log('Auth check:', { canDelete, submittedBy: form.submittedBy, userEmail, userRole });
 
     if (!canDelete) {
       return res.status(403).send({ message: 'You are not authorized to delete this form' });
@@ -1110,7 +1119,7 @@ app.delete('/deleteForm', async (req, res) => {
     res.status(200).send({ message: 'Form deleted successfully' });
 
   } catch (error) {
-    console.error('Error deleting form:', error);
+    console.error('Error deleting form - Name:', error.name, '| Message:', error.message);
     res.status(500).send({ message: 'An error occurred while deleting the form', error: error.message });
   }
 });
