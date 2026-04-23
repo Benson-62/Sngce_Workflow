@@ -67,7 +67,7 @@ function Navbar() {
       <div className="nav-brand">
         <Link to="/dashboard" className="brand-link">
           <img
-            src="/src/assets/sngce.jpg"
+            src="/public/sngce.jpg"
             alt="Workflow Logo"
             className="nav-logo"
             onError={(e) => {
