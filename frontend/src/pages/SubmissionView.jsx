@@ -11,6 +11,8 @@ const statusLabels = {
   accepted: 'Accepted',
   rejected: 'Rejected',
   approved: 'Approved',
+  not_approved: 'Not Approved',
+  cancelled: 'Cancelled',
 };
 const statusColors = {
   awaiting: '#fbbf24', // yellow
@@ -19,6 +21,8 @@ const statusColors = {
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
   edit: '#f59e0b', // orange - needs editing/revision
+  not_approved: '#f97316', // orange
+  cancelled: '#6b7280', // gray
 };
 
 // Role permissions map
@@ -263,6 +267,28 @@ export default function SubmissionView() {
     }
   };
 
+  const handleDownloadAttachment = (attachment) => {
+    let u8arr;
+    if (attachment.file.type === 'Buffer' && attachment.file.data) {
+      u8arr = new Uint8Array(attachment.file.data);
+    } else {
+      const binaryString = window.atob(attachment.file);
+      u8arr = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        u8arr[i] = binaryString.charCodeAt(i);
+      }
+    }
+    const blob = new Blob([u8arr], { type: attachment.mimetype });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = attachment.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40, gap: 24 }}>
       {/* Status Bar */}
@@ -296,15 +322,42 @@ export default function SubmissionView() {
           <div style={{ marginLeft: 32 }}>{Array.isArray(submission.to) ? submission.to.join(', ') : submission.to}</div>
         </div>
         <div style={{ marginBottom: 16 }}>
+          {submission.category && <div><b>Category:</b> {submission.category}</div>}
           <div><b>Subject:</b> {submission.subject}</div>
+          {submission.subjectElaboration && (
+            <div><b>Elaboration:</b> {submission.subjectElaboration}</div>
+          )}
         </div>
         <div style={{ marginBottom: 16 }} ref={letterRef}>
           <div>Respected Sir/Madam,</div>
           <div style={{ marginTop: 16, marginLeft: 32 }}>{submission.details}</div>
         </div>
-        {submission.attachment && submission.attachment.filename && (
+        {submission.attachments && submission.attachments.length > 0 ? (
+          <div style={{ marginBottom: 16, marginLeft: 32 }}>
+            <b>Attachments:</b>
+            <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+              {submission.attachments.map((att, idx) => (
+                <li key={idx} style={{ marginBottom: 8 }}>
+                  {att.filename}
+                  <button
+                    onClick={() => handleDownloadAttachment(att)}
+                    style={{ marginLeft: 12, background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}
+                  >
+                    Download
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : submission.attachment && submission.attachment.filename && (
           <div style={{ marginBottom: 16, marginLeft: 32 }}>
             <b>Attachment:</b> {submission.attachment.filename}
+            <button
+              onClick={() => handleDownloadAttachment(submission.attachment)}
+              style={{ marginLeft: 12, background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}
+            >
+              Download
+            </button>
           </div>
         )}
         <div style={{ marginTop: 32 }}>
@@ -514,6 +567,62 @@ export default function SubmissionView() {
             </div> */}
           {/* </div> */}
 
+          {/* Submitter Actions */}
+          {submission.submittedBy === currentUser?.email && (
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '1rem' }}>
+                👤 Submitter Actions
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                {status === 'awaiting' && (
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to cancel this submission?')) {
+                        handleFormAction('cancelled', 'Cancelled by submitter');
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    style={{
+                      background: '#6b7280', color: 'white', border: 'none', borderRadius: 6,
+                      padding: '10px 16px', fontSize: '0.9rem', fontWeight: '600', cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    🚫 Cancel Form
+                  </button>
+                )}
+                {['awaiting', 'forwarded', 'edit'].includes(status) && (
+                  <button
+                    onClick={async () => {
+                      setIsSubmitting(true);
+                      try {
+                        const backendFormType = submission.owner === 'staff' ? 'faculty' : submission.owner;
+                        await axios.post('http://localhost:3096/sendReminder', {
+                          formId: submission._id,
+                          formType: backendFormType,
+                          submitterEmail: currentUser.email,
+                          currentHandlerRoles: Array.isArray(submission.to) ? submission.to : [submission.to],
+                          department: submission.department
+                        });
+                        alert('Reminders sent successfully!');
+                      } catch (err) {
+                        alert('Failed to send reminders.');
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                    disabled={isSubmitting}
+                    style={{
+                      background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 6,
+                      padding: '10px 16px', fontSize: '0.9rem', fontWeight: '600', cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    🔔 Send Reminder
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Form Actions - Only show for receivers */}
           {canPerformActions && (
             <div style={{ marginBottom: 20 }}>
@@ -583,6 +692,20 @@ export default function SubmissionView() {
                     }}
                   >
                     ✏️ Request Edit
+                  </button>
+                )}
+                
+                {/* Not Approved button for acceptable roles */}
+                {rolePermissions[currentUser?.role]?.reject && (
+                  <button
+                    onClick={() => {
+                      if (!remarks.trim()) { alert('Please provide remarks when marking as Not Approved.'); return; }
+                      if (window.confirm('Are you sure you want to mark this as Not Approved?')) { handleFormAction('not_approved', remarks); }
+                    }}
+                    disabled={isSubmitting}
+                    style={{ background: '#f97316', color: 'white', border: 'none', borderRadius: 6, padding: '10px 16px', fontSize: '0.9rem', fontWeight: '600', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.6 : 1 }}
+                  >
+                    ⚠️ Not Approved
                   </button>
                 )}
               </div>

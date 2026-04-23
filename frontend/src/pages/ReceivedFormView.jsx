@@ -10,6 +10,8 @@ const statusLabels = {
   accepted: 'Accepted',
   rejected: 'Rejected',
   approved: 'Approved',
+  not_approved: 'Not Approved',
+  cancelled: 'Cancelled',
 };
 const statusColors = {
   awaiting: '#fbbf24', // yellow
@@ -18,6 +20,8 @@ const statusColors = {
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
   edit: '#f59e0b', // orange - needs editing/revision
+  not_approved: '#f97316', // orange
+  cancelled: '#6b7280', // gray
 };
 
 // Role permissions map
@@ -198,6 +202,28 @@ const handleAction = async (action) => {
     }
   };
 
+  const handleDownloadAttachment = (attachment) => {
+    let u8arr;
+    if (attachment.file.type === 'Buffer' && attachment.file.data) {
+      u8arr = new Uint8Array(attachment.file.data);
+    } else {
+      const binaryString = window.atob(attachment.file);
+      u8arr = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        u8arr[i] = binaryString.charCodeAt(i);
+      }
+    }
+    const blob = new Blob([u8arr], { type: attachment.mimetype });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = attachment.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '80vh', background: '#f8f9fa', padding: 40 }}>
@@ -218,15 +244,42 @@ const handleAction = async (action) => {
             <div style={{ marginLeft: 32 }}>{Array.isArray(form.to) ? form.to.join(', ') : form.to}</div>
           </div>
           <div style={{ marginBottom: 16 }}>
+            {form.category && <div><b>Category:</b> {form.category}</div>}
             <div><b>Subject:</b> {form.subject}</div>
+            {form.subjectElaboration && (
+              <div><b>Elaboration:</b> {form.subjectElaboration}</div>
+            )}
           </div>
           <div style={{ marginBottom: 16 }} ref={letterRef}>
             <div>Respected Sir/Madam,</div>
             <div style={{ marginTop: 16, marginLeft: 32 }}>{form.details}</div>
           </div>
-          {form.attachment && form.attachment.filename && (
+          {form.attachments && form.attachments.length > 0 ? (
+            <div style={{ marginBottom: 16, marginLeft: 32 }}>
+              <b>Attachments:</b>
+              <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+                {form.attachments.map((att, idx) => (
+                  <li key={idx} style={{ marginBottom: 8 }}>
+                    {att.filename}
+                    <button
+                      onClick={() => handleDownloadAttachment(att)}
+                      style={{ marginLeft: 12, background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}
+                    >
+                      Download
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : form.attachment && form.attachment.filename && (
             <div style={{ marginBottom: 16, marginLeft: 32 }}>
               <b>Attachment:</b> {form.attachment.filename}
+              <button
+                onClick={() => handleDownloadAttachment(form.attachment)}
+                style={{ marginLeft: 12, background: '#e5e7eb', border: '1px solid #d1d5db', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}
+              >
+                Download
+              </button>
             </div>
           )}
           <div style={{ marginTop: 32 }}>
@@ -446,6 +499,34 @@ const handleAction = async (action) => {
                     }}
                   >
                     ✏️ Request Edit
+                  </button>
+                )}
+                {/* Not Approved button for allowed roles and when not final */}
+                {rolePermissions[userRole]?.reject && !isFinal && (
+                  <button
+                    onClick={() => {
+                      if (!remarks.trim()) {
+                        alert('Please provide remarks when marking as Not Approved.');
+                        return;
+                      }
+                      if (window.confirm('Are you sure you want to mark this as Not Approved?')) {
+                        handleAction('not_approved');
+                      }
+                    }}
+                    disabled={saving}
+                    style={{
+                      background: '#f97316',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '10px 16px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      opacity: saving ? 0.6 : 1
+                    }}
+                  >
+                    ⚠️ Not Approved
                   </button>
                 )}
               </div>

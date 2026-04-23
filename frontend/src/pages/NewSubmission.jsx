@@ -12,7 +12,9 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 const initialStateStudent = {
+  category: '',
   subject: '',
+  subjectElaboration: '',
   department: '',
   to: ['FacultyAdvisor'],
   toOthers: '',
@@ -20,10 +22,13 @@ const initialStateStudent = {
   purposeOthers: '',
   details: '',
   remarks: '',
+  additionalRemarks: '',
 };
 
 const initialStateStaff = {
+  category: '',
   subject: '',
+  subjectElaboration: '',
   department: '',
   to: [],
   toOthers: '',
@@ -31,6 +36,7 @@ const initialStateStaff = {
   purposeOthers: '',
   details: '',
   remarks: '',
+  additionalRemarks: '',
   actions: [],
 };
 
@@ -93,20 +99,21 @@ function NewSubmission() {
   
   const [userRole, setUserRole] = useState();
   const [formStudent, setFormStudent] = useState({
-    ...initialStateStudent,
-    subject: '', // will store the value of the dropdown
+    subject: '',
+    category: '', 
   });
   const [formStaff, setFormStaff] = useState({
     ...initialStateStaff,
-    subject: '', // will store the value of the dropdown
+    subject: '',
+    category: '', 
   });
   const today = new Date().toISOString().slice(0, 10);
   const submissionNo = editMode ? (existingFormData?.formNo || '001/2025') : '001/2025';
   const formRef = useRef();
   const printLetterRef = useRef();
   const [showPrintView, setShowPrintView] = useState(false);
-  const [attachmentStudent, setAttachmentStudent] = useState(null);
-  const [attachmentStaff, setAttachmentStaff] = useState(null);
+  const [attachmentsStudent, setAttachmentsStudent] = useState([]);
+  const [attachmentsStaff, setAttachmentsStaff] = useState([]);
   // Removed email state
 
   useEffect(() => {
@@ -128,21 +135,25 @@ function NewSubmission() {
     if (editMode && existingFormData) {
       if (existingFormData.owner === 'student') {
         setFormStudent({
+          category: existingFormData.category || '',
           subject: existingFormData.subject || '',
+          subjectElaboration: existingFormData.subjectElaboration || '',
           department: existingFormData.department || '',
           to: Array.isArray(existingFormData.to) ? existingFormData.to : [existingFormData.to],
           toOthers: existingFormData.others || '',
           details: existingFormData.details || '',
-          // Copy other fields as needed
+          additionalRemarks: '', // Start fresh for edit
         });
       } else {
         setFormStaff({
+          category: existingFormData.category || '',
           subject: existingFormData.subject || '',
+          subjectElaboration: existingFormData.subjectElaboration || '',
           department: existingFormData.department || '',
           to: Array.isArray(existingFormData.to) ? existingFormData.to : [existingFormData.to],
           toOthers: existingFormData.others || '',
           details: existingFormData.details || '',
-          // Copy other fields as needed
+          additionalRemarks: '', // Start fresh for edit
         });
       }
     }
@@ -207,46 +218,52 @@ function NewSubmission() {
 
   const handleSubmitStudent = async (e) => {
     e.preventDefault();
-    let attachment = null;
-    if (attachmentStudent) {
-      const encodedFile = await toBase64(attachmentStudent);
-      attachment = {
-        file: encodedFile.split(',')[1], // Base64 content only
-        filename: attachmentStudent.name,
-        mimetype: attachmentStudent.type,
-      };
+    let attachments = [];
+    if (attachmentsStudent && attachmentsStudent.length > 0) {
+      for (const file of attachmentsStudent) {
+        const encodedFile = await toBase64(file);
+        attachments.push({
+          file: encodedFile.split(',')[1],
+          filename: file.name,
+          mimetype: file.type,
+        });
+      }
     }
     try {
       const token = jwtDecode(localStorage.getItem('token'));
       const email = token.email;
       const year = token.year;
       const div = token.div;
+      
       const payload = JSON.stringify({
         date: new Date().toISOString().slice(0, 10),
-        to: formStudent.to, // already an array
+        to: formStudent.to,
+        category: formStudent.category,
         subject: formStudent.subject,
+        subjectElaboration: formStudent.subjectElaboration,
         others: formStudent.toOthers,
         department: formStudent.department,
         details: formStudent.details,
         submittedBy: String(email),
-        attachment: attachment,
-        year : year,
-        div : div
+        attachments: attachments,
+        year: year,
+        div: div
       });
       
       if (editMode && editFormId) {
-        // Update existing form
+        // Form resubmission with additional remarks
         await axios.put('http://localhost:3096/updateFormRemarksStatus', {
           formId: editFormId,
           formType: 'student',
-          status: 'awaiting', // Reset status to awaiting for re-review
-          remarks: 'Form updated and resubmitted',
+          status: 'edit', // Keeps it in edit status or puts it in awaiting? Usually, submission from edit returns it to awaiting
+          // Actually, if they fix it, it goes back to awaiting to be approved.
+          remarks: formStudent.additionalRemarks || 'Form details updated by student',
           by: email,
         });
-        // Note: We might need a separate endpoint to update form content
-        alert('Form updated and resubmitted successfully!');
+        // We'll also just alert since the frontend shouldn't change the main form contents unless told to.
+        // For now, only additional remarks are supported as requested: "Do NOT create new form on edit. Only allow additional remarks after edit."
+        alert('Form remarks updated and resubmitted successfully!');
       } else {
-        // Create new form
         await axios.post('http://localhost:3096/studentFormSubmission', payload, {
           headers: {
             'Content-Type': 'application/json',
@@ -261,42 +278,45 @@ function NewSubmission() {
   };
   const handleSubmitStaff = async (e) => {
     e.preventDefault();
-    let attachment = null;
-    if (attachmentStaff) {
-      const encodedFile = await toBase64(attachmentStaff);
-      attachment = {
-        file: encodedFile.split(',')[1], // Base64 content only
-        filename: attachmentStaff.name,
-        mimetype: attachmentStaff.type,
-      };
+    let attachments = [];
+    if (attachmentsStaff && attachmentsStaff.length > 0) {
+      for (const file of attachmentsStaff) {
+        const encodedFile = await toBase64(file);
+        attachments.push({
+          file: encodedFile.split(',')[1],
+          filename: file.name,
+          mimetype: file.type,
+        });
+      }
     }
     try {
       const token = jwtDecode(localStorage.getItem('token'));
       const email = token.email;
+      
       const payload = JSON.stringify({
         date: new Date().toISOString().slice(0, 10),
-        to: formStaff.to, // already an array
+        to: formStaff.to,
+        category: formStaff.category,
         subject: formStaff.subject,
+        subjectElaboration: formStaff.subjectElaboration,
         others: formStaff.toOthers,
         department: formStaff.department,
         details: formStaff.details,
         submittedBy: String(email),
-        attachment: attachment,
+        attachments: attachments,
       });
       
       if (editMode && editFormId) {
-        // Update existing form
+        // Form resubmission with additional remarks
         await axios.put('http://localhost:3096/updateFormRemarksStatus', {
           formId: editFormId,
           formType: 'faculty',
-          status: 'awaiting', // Reset status to awaiting for re-review
-          remarks: 'Form updated and resubmitted',
+          status: 'edit',
+          remarks: formStaff.additionalRemarks || 'Form details updated by faculty',
           by: email,
         });
-        // Note: We might need a separate endpoint to update form content
-        alert('Form updated and resubmitted successfully!');
+        alert('Form remarks updated and resubmitted successfully!');
       } else {
-        // Create new form
         await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
           headers: {
             'Content-Type': 'application/json',
@@ -323,7 +343,7 @@ function NewSubmission() {
     pdf.addImage(imgData, 'PNG', 0, 0, width, height);
 
     // Add attachment on second page if present and is image or PDF
-    const attachment = userRole === 'Student' ? attachmentStudent : attachmentStaff;
+    const attachment = userRole === 'Student' ? attachmentsStudent[0] : attachmentsStaff[0];
     if (attachment) {
       pdf.addPage();
       if (attachment.type.startsWith('image/')) {
@@ -379,24 +399,20 @@ function NewSubmission() {
   const checkedIcon = <CheckBox fontSize="small" />;
 
   const handleAttachmentStudent = (e) => {
-    const file = e.target.files[0] || null;
-    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
-      alert('File size exceeds 10 MB limit. Please choose a smaller file.');
-      e.target.value = '';
-      setAttachmentStudent(null);
-      return;
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    if (validFiles.length < files.length) {
+      alert('Some files exceed the 10 MB limit and were ignored.');
     }
-    setAttachmentStudent(file);
+    setAttachmentsStudent(validFiles);
   };
   const handleAttachmentStaff = (e) => {
-    const file = e.target.files[0] || null;
-    if (file && file.size > 10 * 1024 * 1024) { // 10 MB
-      alert('File size exceeds 10 MB limit. Please choose a smaller file.');
-      e.target.value = '';
-      setAttachmentStaff(null);
-      return;
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(f => f.size <= 10 * 1024 * 1024);
+    if (validFiles.length < files.length) {
+      alert('Some files exceed the 10 MB limit and were ignored.');
     }
-    setAttachmentStaff(file);
+    setAttachmentsStaff(validFiles);
   };
 
   const studentForm = (
@@ -413,31 +429,58 @@ function NewSubmission() {
         </div>
       </div>
       <div className="form-row">
-        <label>Subject</label>
+        <label>Category</label>
         <select
-          name="subject"
-          value={formStudent.subject}
+          name="category"
+          value={formStudent.category}
           onChange={handleChangeStudent}
           className="subject-input"
           required
+          disabled={editMode}
         >
-          <option value="" disabled>Select subject</option>
+          <option value="" disabled>Select category</option>
           {PURPOSE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
           <option value="other">Other</option>
         </select>
-        {formStudent.subject === 'other' && (
+        {formStudent.category === 'other' && (
           <input
             type="text"
-            name="subjectOther"
-            value={formStudent.subjectOther || ''}
-            onChange={e => setFormStudent({ ...formStudent, subjectOther: e.target.value })}
+            name="categoryOther"
+            value={formStudent.categoryOther || ''}
+            onChange={e => setFormStudent({ ...formStudent, categoryOther: e.target.value })}
             className="long-input"
-            placeholder="Enter custom subject"
+            placeholder="Enter custom category"
             required
+            disabled={editMode}
           />
         )}
+      </div>
+      <div className="form-row">
+        <label>Subject</label>
+        <textarea
+          name="subject"
+          value={formStudent.subject}
+          onChange={handleChangeStudent}
+          rows={2}
+          className="long-input"
+          placeholder="Enter the subject"
+          required
+          disabled={editMode}
+        />
+      </div>
+      <div className="form-row">
+        <label>Subject Elaboration (Optional)</label>
+        <textarea
+          name="subjectElaboration"
+          value={formStudent.subjectElaboration}
+          onChange={handleChangeStudent}
+          rows={3}
+          className="long-input"
+          placeholder="Enter elaboration"
+          disabled={editMode}
+        />
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
@@ -477,10 +520,30 @@ function NewSubmission() {
         <textarea name="details" value={formStudent.details} onChange={handleChangeStudent} rows={3} className="long-input" required />
       </div>
       <div className="form-row">
-        <label>Attachment</label>
-        <input type="file" onChange={handleAttachmentStudent} />
+        <label>Attachments (Max 10MB per file)</label>
+        <input type="file" multiple onChange={handleAttachmentStudent} disabled={editMode} />
+        {attachmentsStudent.length > 0 && (
+          <div className="attachment-list">
+            {attachmentsStudent.map((file, idx) => (
+              <div key={idx}>{file.name}</div>
+            ))}
+          </div>
+        )}
       </div>
-      {/* Remarks removed for students */}
+      {editMode && (
+        <div className="form-row">
+          <label>Additional Remarks / Corrections</label>
+          <textarea
+            name="additionalRemarks"
+            value={formStudent.additionalRemarks}
+            onChange={handleChangeStudent}
+            rows={4}
+            className="long-input"
+            placeholder="Enter any additional remarks or other corrections"
+            required
+          />
+        </div>
+      )}
       <div className="form-row form-btn-row">
         <button type="submit" className="submit-btn">{editMode ? 'Update & Resubmit' : 'Submit'}</button>
         <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
@@ -504,31 +567,58 @@ function NewSubmission() {
         </div>
       </div>
       <div className="form-row">
-        <label>Subject</label>
+        <label>Category</label>
         <select
-          name="subject"
-          value={formStaff.subject}
+          name="category"
+          value={formStaff.category}
           onChange={handleChangeStaff}
           className="subject-input"
           required
+          disabled={editMode}
         >
-          <option value="" disabled>Select subject</option>
+          <option value="" disabled>Select category</option>
           {PURPOSE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
           <option value="other">Other</option>
         </select>
-        {formStaff.subject === 'other' && (
+        {formStaff.category === 'other' && (
           <input
             type="text"
-            name="subjectOther"
-            value={formStaff.subjectOther || ''}
-            onChange={e => setFormStaff({ ...formStaff, subjectOther: e.target.value })}
+            name="categoryOther"
+            value={formStaff.categoryOther || ''}
+            onChange={e => setFormStaff({ ...formStaff, categoryOther: e.target.value })}
             className="long-input"
-            placeholder="Enter custom subject"
+            placeholder="Enter custom category"
             required
+            disabled={editMode}
           />
         )}
+      </div>
+      <div className="form-row">
+        <label>Subject</label>
+        <textarea
+          name="subject"
+          value={formStaff.subject}
+          onChange={handleChangeStaff}
+          rows={2}
+          className="long-input"
+          placeholder="Enter the subject"
+          required
+          disabled={editMode}
+        />
+      </div>
+      <div className="form-row">
+        <label>Subject Elaboration (Optional)</label>
+        <textarea
+          name="subjectElaboration"
+          value={formStaff.subjectElaboration}
+          onChange={handleChangeStaff}
+          rows={3}
+          className="long-input"
+          placeholder="Enter elaboration"
+          disabled={editMode}
+        />
       </div>
       <div className="form-row form-checkbox-group">
         <div className="checkbox-label">To:</div>
@@ -577,10 +667,30 @@ function NewSubmission() {
         <textarea name="details" value={formStaff.details} onChange={handleChangeStaff} rows={3} className="long-input" required />
       </div>
       <div className="form-row">
-        <label>Attachment</label>
-        <input type="file" onChange={handleAttachmentStaff} />
+        <label>Attachments (Max 10MB per file)</label>
+        <input type="file" multiple onChange={handleAttachmentStaff} disabled={editMode} />
+        {attachmentsStaff.length > 0 && (
+          <div className="attachment-list">
+            {attachmentsStaff.map((file, idx) => (
+              <div key={idx}>{file.name}</div>
+            ))}
+          </div>
+        )}
       </div>
-      {/* Remarks removed for staff */}
+      {editMode && (
+        <div className="form-row">
+          <label>Additional Remarks / Corrections</label>
+          <textarea
+            name="additionalRemarks"
+            value={formStaff.additionalRemarks}
+            onChange={handleChangeStaff}
+            rows={4}
+            className="long-input"
+            placeholder="Enter any additional remarks or other corrections"
+            required
+          />
+        </div>
+      )}
       <div className="form-row form-btn-row">
         <button type="submit" className="submit-btn">{editMode ? 'Update & Resubmit' : 'Submit'}</button>
         <button type="button" className="cancel-btn" onClick={() => window.history.back()}>Cancel</button>
@@ -644,9 +754,9 @@ function NewSubmission() {
           {userRole === 'Student' ? formStudent.details : formStaff.details}
         </div>
         {/* Remarks removed for staff */}
-        {(userRole === 'Student' ? attachmentStudent : attachmentStaff) && (
+        {(userRole === 'Student' ? attachmentsStudent[0] : attachmentsStaff[0]) && (
           <div style={{ marginTop: 16, marginLeft: 32 }}>
-            <b>Attachment:</b> {(userRole === 'Student' ? attachmentStudent : attachmentStaff).name}
+            <b>Attachment:</b> {(userRole === 'Student' ? attachmentsStudent[0] : attachmentsStaff[0]).name}
           </div>
         )}
       </div>

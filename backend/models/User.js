@@ -35,5 +35,9 @@ const userSchema = mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Index for role-based queries (admin dashboards)
+userSchema.index({ role: 1 });
+userSchema.index({ email: 1 }); // email is already unique, this makes it explicit
+
 var User=mongoose.model("User",userSchema);
 module.exports=User;

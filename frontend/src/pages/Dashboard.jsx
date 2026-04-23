@@ -13,6 +13,8 @@ const statusColors = {
   rejected: '#ef4444', // red
   approved: '#22c55e', // green
   edit: '#f59e0b', // orange - needs editing/revision
+  not_approved: '#f97316', // orange
+  cancelled: '#6b7280', // gray
 };
 
 // Actions component for better organization
@@ -274,6 +276,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 <tr>
                   <th>ID</th>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -292,6 +295,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                       <div style={{ fontSize: 12, color: '#666' }}>{submission.submittedBy}</div>
                     </td>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -356,6 +360,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
               <thead>
                 <tr>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -369,6 +374,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 {studentSubmissions.map((submission, idx) => (
                   <tr key={submission._id || submission.id || idx}>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -432,6 +438,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
               <thead>
                 <tr>
                   <th>Submission No</th>
+                  <th>Category</th>
                   <th>Subject</th>
                   <th>Department</th>
                   <th>Status</th>
@@ -445,6 +452,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
                 {staffSubmissions.map((submission, idx) => (
                   <tr key={submission._id || submission.id || idx}>
                     <td>#{submission.formNo || submission.id || submission._id}</td>
+                    <td>{submission.category || '-'}</td>
                     <td>{submission.subject}</td>
                     <td>{submission.department}</td>
                     <td>
@@ -534,7 +542,14 @@ function Dashboard() {
         setActiveSidePanelForm(null);
         setRemarks('');
         setForwardTo('');
-        window.location.reload();
+        // Update the specific form in state — avoids full page reload
+        setReceivedSubmissions(prev =>
+          prev.map(f =>
+            f._id === submission._id
+              ? { ...f, status: 'forwarded', remarks }
+              : f
+          )
+        );
       } catch (error) {
         console.error('Error updating form:', error);
         alert('Failed to update form. Please try again.');
@@ -731,7 +746,6 @@ function Dashboard() {
       params.set('role', role);
       if (department) params.set('department', department);
       const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?${params.toString()}`);
-      console.log(res)
       setReceivedSubmissions(res.data || []);
     } catch (err) {
       setErrorReceived('Failed to fetch received submissions');
@@ -742,13 +756,10 @@ function Dashboard() {
 
   const fetchFA = async () => {
     try {
-      console.log(email, department)
       const res = await axios.get(`http://localhost:3096/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
-      console.log('Faculty Advisor data:', res.data);
-      if (res.data && res.data.length > 0) {
-        const yearFromAPI = res.data[0].year;
-        const divFromAPI = res.data[0].div;
-        console.log("LOOK AT THIS",yearFromAPI,divFromAPI)
+        if (res.data && res.data.length > 0) {
+          const yearFromAPI = res.data[0].year;
+          const divFromAPI = res.data[0].div;
 
         setYear(yearFromAPI);
         setDiv(divFromAPI);
@@ -791,7 +802,6 @@ function Dashboard() {
         try {
           console.log('Fetching submissions for:', email, role);
           const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-          console.log('Submissions received:', res.data);
           setSubmissions(res.data || []);
         } catch (err) {
           console.error('Error fetching submissions:', err);
@@ -803,12 +813,9 @@ function Dashboard() {
       if ((role || '').toLowerCase() === 'facultyadvisor') {
         fetchFA();
       } else {
-        fetchReceived();
+        fetchReceived(); // single call — removed duplicate
       }
       fetchSubmissions();
-      if (role != "FacultyAdvisor" && role != "facultyadvisor"){// Only fetch received forms for non-FA users
-        fetchReceived();
-      }
     }, [navigate]);
   if (loading) {
     return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
@@ -901,7 +908,7 @@ function Dashboard() {
 
       {viewMode === 'current' ? (
         <>
-          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} />
+          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} setSubmissions={setSubmissions} />
           <div style={{ marginTop: 48 }}>
             <div className="dashboard-header" style={{ marginBottom: 24 }}>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: 28}}>Received Submissions</h2>

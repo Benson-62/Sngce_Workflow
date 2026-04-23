@@ -15,9 +15,36 @@ app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
 // Models
+// Models
 const fFormModel = require('./models/facultyForm');
 const sFormModel = require('./models/studentForm');
 const fAdvisorModel = require('./models/facultyAdvisor');
+
+// Notification Model (Inline)
+const NotificationSchema = new mongoose.Schema({
+  recipientEmail: { type: String, required: true },
+  message: { type: String, required: true },
+  relatedFormId: { type: mongoose.Schema.Types.ObjectId, refPath: 'relatedFormType' },
+  relatedFormType: { type: String, enum: ['studentForm', 'facultyForm'] },
+  isRead: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now }
+});
+const NotificationModel = mongoose.model('Notification', NotificationSchema);
+
+// Helper function to create notification
+const createNotification = async (recipientEmail, message, relatedFormId, relatedFormType) => {
+  try {
+    await new NotificationModel({
+      recipientEmail,
+      message,
+      relatedFormId,
+      relatedFormType: relatedFormType === 'student' ? 'studentForm' : 'facultyForm' // Adjust based on your model names usually
+    }).save();
+    console.log(`Notification sent to ${recipientEmail}`);
+  } catch (error) {
+    console.error(`Failed to send notification to ${recipientEmail}:`, error);
+  }
+};
 
 // Routes
 
@@ -62,65 +89,65 @@ app.get('/getFacultyAdvisor', async (req, res) => {
   }
 });
 // Filtered Faculty Forms
-app.get('/getFForms', async(req,res)=>{
-var {role, department} = req.body;
-console.log(role)
-console.log(department)
-  try{
-    if(role != 'principal' || role != 'manager'){
-      const forms = await fFormModel.find({to :role, department : department});
+app.get('/getFForms', async (req, res) => {
+  var { role, department } = req.body;
+  console.log(role)
+  console.log(department)
+  try {
+    if (role != 'principal' || role != 'manager') {
+      const forms = await fFormModel.find({ to: role, department: department });
       console.log("1")
       console.log(forms)
       res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
-    }else{
-      const formVar = await fFormModel.find({to : role});
+    } else {
+      const formVar = await fFormModel.find({ to: role });
       console.log(formVar)
       res.send(formVar)
     }
-  }catch(error){
+  } catch (error) {
     console.log(error)
     res.send(error)
   }
 })
 // Filtered Student Forms
-app.get('/getSForms', async(req,res)=>{
-var {role, department} = req.body;
-console.log(role)
-console.log(department)
-  try{
-    if(role != 'principal' || role != 'manager'){
-      const forms = await sFormModel.find({to :role, department : department});
+app.get('/getSForms', async (req, res) => {
+  var { role, department } = req.body;
+  console.log(role)
+  console.log(department)
+  try {
+    if (role != 'principal' || role != 'manager') {
+      const forms = await sFormModel.find({ to: role, department: department });
       console.log("1")
       console.log(forms)
       res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
-    }else{
-      const formVar = await sFormModel.find({to : role});
+    } else {
+      const formVar = await sFormModel.find({ to: role });
       console.log(formVar)
       res.send(formVar)
     }
-  }catch(error){
+  } catch (error) {
     console.log(error)
     res.send(error)
   }
 })
 // Get all Faculty Forms
-app.get('/getAllFForms', async(req,res)=>{
-  try{
+app.get('/getAllFForms', async (req, res) => {
+  try {
     const forms = await fFormModel.find();
     console.log(forms)
     res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
-  }catch(error){
+  } catch (error) {
     console.log(error)
     res.send(error)
   }
 })
 // Get all Student Forms
-app.get('/getAllSForms', async(req,res)=>{
-  try{
+app.get('/getAllSForms', async (req, res) => {
+  try {
     const forms = await sFormModel.find();
     console.log(forms)
     res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
-  }catch(error){
+  } catch (error) {
     console.log(error)
     res.send(error)
   }
@@ -164,19 +191,19 @@ app.get('/getFFormById/:id', async (req, res) => {
   try {
     const form = await fFormModel.findById(req.params.id);
     if (!form) return res.status(404).send('Not found');
-    res.send({ ...form.toObject(), owner: 'faculty' });  
+    res.send({ ...form.toObject(), owner: 'faculty' });
   } catch (error) {
     res.status(500).send(error);
   }
 });
 
-app.post('/createFacultyAdvisor', async (req,res)=> {
-  const { year, department, facultyNames,div} = req.body;
+app.post('/createFacultyAdvisor', async (req, res) => {
+  const { year, department, facultyNames } = req.body;
   try {
-    await fAdvisorModel({year, department, facultyNames,div}).save();
+    await fAdvisorModel({ year, department, facultyNames }).save();
     console.log("Saved to DB!");
     res.send("Saved to DB!");
-  } catch (error){
+  } catch (error) {
     console.log(error);
     res.send(error);
   }
@@ -184,11 +211,30 @@ app.post('/createFacultyAdvisor', async (req,res)=> {
 
 
 app.post('/facultyFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment , submittedBy} = req.body;
+  const { date, to, category, subject, subjectElaboration, others, department, details, attachment, attachments, submittedBy } = req.body;
   console.log(req.body);
   try {
-    await fFormModel({ date, to, subject, others, department, details, attachment, submittedBy }).save();
+    const finalAttachments = attachments || (attachment ? [attachment] : []);
+    const savedForm = await fFormModel({ 
+      date, to, 
+      category: category || subject, 
+      subject, subjectElaboration, 
+      others, department, details, 
+      attachment: attachment || (attachments && attachments.length > 0 ? attachments[0] : null),
+      attachments: finalAttachments, 
+      submittedBy 
+    }).save();
     console.log("form submitted!")
+
+    // Notify Recipient
+    // Logic to resolve 'to' role to emails would go here. 
+    // For now, simpler implementation: 
+    // If 'to' is a role like 'HOD' or 'Principal', we might need to find the user.
+    // Ideally, we'd have a helper to resolve Roles -> Emails based on Dept.
+    // For this step, let's assume 'to' might be a specific email OR we notify all users with that role/dept.
+
+    await notifyRecipients(savedForm, 'faculty', to, department);
+
     res.send('Form submitted');
   } catch (error) {
     console.log(error);
@@ -196,11 +242,23 @@ app.post('/facultyFormSubmission', async (req, res) => {
   }
 });
 app.post('/studentFormSubmission', async (req, res) => {
-  const { date, to, subject, others, department, details, attachment , submittedBy, div, year} = req.body;
+  const { date, to, category, subject, subjectElaboration, others, department, details, attachment, attachments, submittedBy, div, year } = req.body;
   console.log(req.body);
   try {
-    await sFormModel({ date, to, subject, others, department, details, attachment, submittedBy , div, year}).save();
+    const finalAttachments = attachments || (attachment ? [attachment] : []);
+    const savedForm = await sFormModel({ 
+      date, to, 
+      category: category || subject, 
+      subject, subjectElaboration, 
+      others, department, details, 
+      attachment: attachment || (attachments && attachments.length > 0 ? attachments[0] : null),
+      attachments: finalAttachments, 
+      submittedBy, div, year 
+    }).save();
     console.log("form submitted!")
+
+    await notifyRecipients(savedForm, 'student', to, department);
+
     res.send('Form submitted');
   } catch (error) {
     console.log(error);
@@ -208,16 +266,34 @@ app.post('/studentFormSubmission', async (req, res) => {
   }
 });
 
+// Change Password
+app.put('/changePassword', async (req, res) => {
+  const { email, currentPassword, newPassword } = req.body;
+  if (!email || !currentPassword || !newPassword) {
+    return res.status(400).send({ message: 'email, currentPassword, and newPassword are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).send({ message: 'New password must be at least 6 characters.' });
+  }
+  try {
+    const user = await logmodel.findOne({ email });
+    if (!user) return res.status(404).send({ message: 'User not found.' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).send({ message: 'Current password is incorrect.' });
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.status(200).send({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).send({ message: 'Failed to change password.', error: error.message });
+  }
+});
+
 app.post('/createAccount', async (req, res) => {
-  const { fName, lName, email, password, role, department,year, div } = req.body;
+  const { fName, lName, email, password, role, department } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   try {
-    if(!year || !div){
-      console.log("No year or div provided, creating account without them");
-      await logmodel({ fName, lName, email, password: hashedPassword, role , department}).save();
-    }else{
-      await logmodel({ fName, lName, email, password: hashedPassword, role , department, year, div}).save();
-    }
+    await logmodel({ fName, lName, email, password: hashedPassword, role, department }).save();
     res.send("User added");
   } catch (error) {
     console.log(error);
@@ -387,7 +463,7 @@ app.post('/login', async (req, res) => {
     if (!isMatch) return res.status(400).send("Invalid Credentials");
 
     const token = jwt.sign(
-      { _id: usr._id, email: usr.email, role: usr.role, department: usr.department, year : usr.year, div : usr.div },
+      { _id: usr._id, email: usr.email, role: usr.role, department: usr.department, year: usr.year, div: usr.div },
       'pineapplepie',
       { expiresIn: '2h' }
     );
@@ -524,8 +600,8 @@ app.get('/getArchivedForms', async (req, res) => {
  * - div (string): The user's assigned division (required for 'FacultyAdvisor').
  */
 app.get('/getReceivedFormsForUser', async (req, res) => {
-  const { role, department, year, div } = req.query;
-  console.log(role, department, year, div);
+  const { role, department, year, div, type } = req.query; // Added 'type'
+  console.log({ role, department, year, div, type });
 
   // --- Input Validation ---
   if (!role) {
@@ -539,68 +615,78 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
   }
 
   try {
-    // --- 1. Find Received Forms from Faculty/Staff ---
-    let facultyReceived;
-    if (role === 'Principal' || role === 'principal') {
+    let facultyReceived = [];
+    let studentReceived = [];
+
+    if (role === 'HOD' || role === 'hod') {
+      if (type === 'staff') {
+        const staffUsers = await logmodel.find({ role: 'Faculty', department: department }, 'email').lean();
+        const staffEmails = staffUsers.map(u => u.email);
+        facultyReceived = await fFormModel.find({ submittedBy: { $in: staffEmails }, to: { $in: [role, 'HOD', 'hod'] }, department: department });
+      } else if (type === 'student') {
+        const studentUsers = await logmodel.find({ role: 'Student', department: department }, 'email').lean();
+        const studentEmails = studentUsers.map(u => u.email);
+        studentReceived = await sFormModel.find({ submittedBy: { $in: studentEmails }, to: { $in: [role, 'HOD', 'hod'] }, department: department });
+      } else {
+        // Default for HOD if no specific 'type' parameter or an invalid one (fetch both)
+        const [deptFacultyForms, deptStudentForms] = await Promise.all([
+          fFormModel.find({ to: { $in: [role, 'HOD', 'hod'] }, department: department }),
+          sFormModel.find({ to: { $in: [role, 'HOD', 'hod'] }, department: department })
+        ]);
+        facultyReceived = deptFacultyForms;
+        studentReceived = deptStudentForms;
+      }
+    } else if (role === 'Manager' || role === 'manager') {
+      const pendingStatuses = ['awaiting', 'forwarded', 'edit'];
+      facultyReceived = await fFormModel.find({ status: { $in: pendingStatuses } });
+      studentReceived = await sFormModel.find({ status: { $in: pendingStatuses } });
+    } else if (role === 'Principal' || role === 'principal') {
       // Principal sees all faculty forms addressed to them
       facultyReceived = await fFormModel.find({ to: { $in: [role, 'Principal', 'principal'] } });
+      studentReceived = await sFormModel.find({ to: { $in: [role, 'Principal', 'principal'] } });
     } else {
-      // For other roles, match role; restrict by department only for HOD
+      // For other roles
       const facultyQuery = { to: role };
       if ((role === 'HOD' || role === 'hod') && department) {
         facultyQuery.department = department;
       }
       facultyReceived = await fFormModel.find(facultyQuery);
+
+      const allStudentForms = await sFormModel.find().lean();
+
+      studentReceived = allStudentForms.filter(form => {
+        const toArray = Array.isArray(form.to) ? form.to : [form.to];
+
+        const isRecipient = toArray.some(recipient =>
+        (recipient === role ||
+          (role === 'Principal' && recipient === 'principal') ||
+          (role === 'principal' && recipient === 'Principal'))
+        ) && (
+            (role === 'HOD' && form.department === department) ||
+            (role === 'FacultyAdvisor' && form.department === department && form.year == year && form.div === div) ||
+            ['Principal', 'principal', 'Manager', 'manager'].includes(role)
+          );
+
+        if (!isRecipient) {
+          return false;
+        }
+
+        const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'principal', 'Manager', 'manager'].includes(r));
+        const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
+        const isPrincipalOrManager = ['Principal', 'principal', 'Manager', 'manager'].includes(role);
+
+        if (isToHodOrHigher && !includesFacultyAdvisor && !isPrincipalOrManager) {
+          return false;
+        }
+
+        return true;
+      });
     }
 
-    // --- 2. Find Received Forms from Students ---
-    // Student forms require specific checks for HOD (department) and FacultyAdvisor (department, year, div).
-    // We use .lean() for better performance as it returns plain JS objects.
-    const allStudentForms = await sFormModel.find().lean();
-
-    const studentReceived = allStudentForms.filter(form => {
-      const toArray = Array.isArray(form.to) ? form.to : [form.to];
-
-      // Check #1: Is the current user an intended recipient of this form?
-      const isRecipient = toArray.some(recipient => 
-        (recipient === role || 
-         (role === 'Principal' && recipient === 'principal') ||
-         (role === 'principal' && recipient === 'Principal'))
-      ) && (
-        // For HOD, department must also match
-        (role === 'HOD' && form.department === department) ||
-        // For FacultyAdvisor, department, year, and div must match
-        (role === 'FacultyAdvisor' && form.department === department && form.year == year && form.div === div) ||
-        // For Principal and other high-level roles, role match is sufficient
-        ['Principal', 'principal', 'Manager', 'manager'].includes(role)
-      );
-
-      // If the user isn't a recipient, we can immediately exclude this form.
-      if (!isRecipient) {
-        return false;
-      }
-
-      // Check #2: Does the form follow the routing hierarchy rule?
-      // Rule: If a form is addressed to HOD or higher, it must have been routed via the FacultyAdvisor.
-      // Exception: Principal and Manager can see forms directly without FacultyAdvisor routing
-      const isToHodOrHigher = toArray.some(r => ['HOD', 'Principal', 'principal', 'Manager', 'manager'].includes(r));
-      const includesFacultyAdvisor = toArray.includes('FacultyAdvisor');
-      const isPrincipalOrManager = ['Principal', 'principal', 'Manager', 'manager'].includes(role);
-
-      if (isToHodOrHigher && !includesFacultyAdvisor && !isPrincipalOrManager) {
-        // This form is "stuck" and hasn't been routed correctly yet, so don't show it to HOD
-        // But Principal and Manager can see all forms addressed to them
-        return false;
-      }
-
-      // If both checks pass, include the form.
-      return true;
-    });
-    console.log(facultyReceived, studentReceived);
-    // --- 3. Combine, Format, and Send the Response ---
+    const toPlain = doc => (typeof doc.toObject === 'function' ? doc.toObject() : doc);
     res.send([
-      ...facultyReceived.map(f => ({ ...f.toObject(), owner: 'staff' })),
-      ...studentReceived.map(s => ({ ...s, owner: 'student' })) // .lean() was used, so .toObject() is not needed
+      ...facultyReceived.map(f => ({ ...toPlain(f), owner: 'staff' })),
+      ...studentReceived.map(s => ({ ...toPlain(s), owner: 'student' }))
     ]);
 
   } catch (error) {
@@ -639,9 +725,85 @@ app.get('/getReceivedFormsForUser', async (req, res) => {
 //   }
 // });
 
-// app.listen(PORT, () => {
-//   console.log(`Port is up and running at ${PORT}`);
-// });
+// --- Notification Endpoints ---
+
+// Send Reminder
+app.post('/sendReminder', async (req, res) => {
+  const { formId, formType, submitterEmail, currentHandlerRoles, department } = req.body;
+  try {
+    // Notify the current handler roles based on the pending status
+    if (currentHandlerRoles && Array.isArray(currentHandlerRoles)) {
+      for (const role of currentHandlerRoles) {
+        // Here we ideally send to specific emails, for now send role-based message or find users by role
+        const users = await logmodel.find({ role: new RegExp(`^${role}$`, 'i'), ...(role.toLowerCase() === 'hod' || role.toLowerCase() === 'facultyadvisor' ? { department } : {}) }).lean();
+        for (const user of users) {
+          await createNotification(user.email, `Reminder: A form submitted by ${submitterEmail} is pending your approval.`, formId, formType);
+        }
+      }
+    }
+    
+    // Notify Manager about the delay
+    const managers = await logmodel.find({ role: new RegExp('^Manager$', 'i') }).lean();
+    for (const manager of managers) {
+      await createNotification(manager.email, `Escalation: Form ${formId} from ${submitterEmail} is pending and a reminder was sent.`, formId, formType);
+    }
+
+    res.status(200).send({ message: 'Reminders sent successfully' });
+  } catch (error) {
+    console.error('Error sending reminder:', error);
+    res.status(500).send({ message: 'Failed to send reminder', error: error.message });
+  }
+});
+
+// Get notifications for a user
+app.get('/notifications', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).send({ message: 'Email is required' });
+  try {
+    const notifications = await NotificationModel.find({ recipientEmail: email }).sort({ createdAt: -1 });
+    // console.log(notifications)
+    res.send(notifications);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Mark single notification as read
+app.put('/markNotificationRead/:id', async (req, res) => {
+  try {
+    await NotificationModel.findByIdAndUpdate(req.params.id, { isRead: true });
+    res.send({ message: 'Marked as read' });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Mark all notifications as read
+app.put('/markAllNotificationsRead', async (req, res) => {
+  const { email } = req.body;
+  try {
+    await NotificationModel.updateMany({ recipientEmail: email, isRead: false }, { isRead: true });
+    res.send({ message: 'All marked as read' });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Delete read notifications (optional cleanup)
+app.delete('/clearNotifications', async (req, res) => {
+  const { email } = req.body;
+  try {
+    await NotificationModel.deleteMany({ recipientEmail: email, isRead: true });
+    res.send({ message: 'Read notifications cleared' });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+
+app.listen(PORT, () => {
+  console.log(`Port is up and running at ${PORT}`);
+});
 
 // app.put('/updateFormRemarksStatus', async (req, res) => {
 //   const { formId, formType, remarks, status, to, by } = req.body;
@@ -770,26 +932,152 @@ app.put('/updateFormRemarksStatus', async (req, res) => {
       return res.status(404).send({ message: 'Form not found with the provided formId.' });
     }
 
+    // Send Notification for Update (Forward/Return/Status Change)
+    if (updatedForm) {
+      // 1. Notify the original submitter of status change (if status changed)
+      if (status && status !== currentForm.status) {
+        createNotification(
+          updatedForm.submittedBy,
+          `Your form status has been updated to: ${status}`,
+          updatedForm._id,
+          formType
+        );
+      }
+
+      // 2. Notify new recipient if forwarded
+      if (to && to !== currentForm.to) {
+        // If 'to' is an array (forward chain), get the last one
+        const newRecipient = Array.isArray(to) ? to[to.length - 1] : to;
+
+        // We need year/div context from form for FacultyAdvisor role
+        const formYear = updatedForm.year; // might be undefined for faculty forms
+        const formDiv = updatedForm.div;
+
+        // Re-use the resolving logic? 
+        // Since notifyRecipients is async and complex, let's call it or a similar logic.
+        // For forwarding, it usually goes to a ROLE.
+        await notifyRecipients(updatedForm, formType, newRecipient, updatedForm.department);
+      }
+    }
+
     console.log('Update successful. Returning updated form.');
     res.status(200).send(updatedForm);
-    
+
   } catch (error) {
     console.error("Error in /updateFormRemarksStatus:", error);
     res.status(500).send({ message: 'An internal server error occurred.', error: error.message });
   }
 });
 
+// Endpoint to send a reminder notification
+app.post('/sendReminder', async (req, res) => {
+  const { formId, formType, submitterEmail, currentHandlerRoles, department } = req.body;
+
+  if (!formId || !formType || !submitterEmail || !currentHandlerRoles) {
+    return res.status(400).send({ message: 'Missing required parameters.' });
+  }
+
+  try {
+    const rolesArray = Array.isArray(currentHandlerRoles) ? currentHandlerRoles : [currentHandlerRoles];
+    const currentHandlerRole = rolesArray[rolesArray.length - 1]; // Notify the last one in the 'to' array
+
+    // 1. Send notification to the current handler
+    await notifyRecipients({ _id: formId }, formType, currentHandlerRole, department);
+
+    // 2. Send notification to Managers (Higher Authority)
+    await notifyRecipients({ _id: formId }, formType, 'Manager', undefined);
+
+    res.status(200).send({ message: 'Reminders sent successfully.' });
+  } catch (error) {
+    console.error("Error sending reminders:", error);
+    res.status(500).send({ message: 'Failed to send reminders.', error: error.message });
+  }
+});
+
+// Helper to resolve recipients and send
+async function notifyRecipients(form, formType, targetRole, department) {
+  try {
+    let recipientEmails = [];
+    const isArray = Array.isArray(targetRole);
+    const actualTarget = isArray ? targetRole[targetRole.length - 1] : targetRole;
+
+    // Normalize
+    const roleLower = actualTarget.toLowerCase();
+
+    // 1. Find users with this role & department
+    const query = {};
+
+    if (roleLower === 'hod' || roleLower === 'facultyadvisor') {
+      query.role = { $regex: new RegExp(`^${actualTarget}$`, 'i') }; // Case incentive match
+      query.department = department; // HOD/Advisor is dept specific
+      // For advisor, we technically need year/div too, but User model might not have strict year/div for Faculty users easily queryable 
+      // akin to student forms. Often Advisors are assigned roughly.
+      // If your system maps advisors in `fAdvisorModel`, we should use that. 
+      // Let's stick to the Role-based User query for now as per `logmodel`.
+    } else if (roleLower === 'principal' || roleLower === 'manager' || roleLower === 'admin') {
+      query.role = { $regex: new RegExp(`^${actualTarget}$`, 'i') };
+      // No dept filter
+    } else if (roleLower === 'student' || roleLower === 'faculty') {
+      // Direct user email? If targetRole is an email, use it.
+      if (actualTarget.includes('@')) {
+        recipientEmails.push(actualTarget);
+      }
+    } else {
+      // Fallback: Try to find any user with this role in the dept
+      query.role = { $regex: new RegExp(`^${actualTarget}$`, 'i') };
+      if (department) query.department = department;
+
+      // Also check if it's a direct email
+      if (actualTarget.includes('@')) {
+        recipientEmails.push(actualTarget);
+      }
+    }
+
+    if (Object.keys(query).length > 0) {
+      const users = await logmodel.find(query);
+
+      // Filter Advisors if needed (logic can be complex, simplifying to all advisors of dept for now or specific logic)
+      // If the role is FacultyAdvisor, we might want to check the advisor mapping?
+      // For now, notify ALL users with that Role in that Dept to be safe/ensure delivery.
+
+      users.forEach(u => recipientEmails.push(u.email));
+    }
+
+    // Dedupe
+    recipientEmails = [...new Set(recipientEmails)];
+
+    // Send
+    for (const email of recipientEmails) {
+      await createNotification(
+        email,
+        `New ${formType} form waiting for your action.`,
+        form._id,
+        formType
+      );
+    }
+
+  } catch (e) {
+    console.error("Error notifying recipients:", e);
+  }
+}
+
+
 // Delete form endpoint - allows deletion of forms with 'awaiting' status by authorized users
 app.delete('/deleteForm', async (req, res) => {
   const { formId, formType, userEmail, userRole } = req.body;
-  
-  console.log('Delete request:', { formId, formType, userEmail, userRole });
-  
+
+  console.log('Delete request received:', { formId, formType, userEmail, userRole });
+
   // Input validation
   if (!formId || !formType || !userEmail || !userRole) {
     return res.status(400).send({ message: 'Missing required parameters: formId, formType, userEmail, userRole' });
   }
-  
+
+  // Validate formId is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(formId)) {
+    return res.status(400).send({ message: 'Invalid form ID format' });
+  }
+
   try {
     let model;
     if (formType === 'student') {
@@ -797,37 +1085,41 @@ app.delete('/deleteForm', async (req, res) => {
     } else if (formType === 'faculty') {
       model = fFormModel;
     } else {
-      return res.status(400).send({ message: `Invalid form type: ${formType}` });
+      return res.status(400).send({ message: `Invalid form type: ${formType}. Must be 'student' or 'faculty'` });
     }
-    
+
     // Find the form first
-    const form = await model.findById(formId);
+    const form = await model.findById(formId).lean();
     if (!form) {
       return res.status(404).send({ message: 'Form not found' });
     }
-    
-    // Check if form status allows deletion (awaiting or edit)
-    if (form.status !== 'awaiting' && form.status !== 'edit' && !form.status) {
-      return res.status(400).send({ message: 'Only forms with "awaiting" or "edit" status can be deleted' });
+
+    console.log('Form found:', { status: form.status, submittedBy: form.submittedBy });
+
+    // Check if form status allows deletion (only 'awaiting' or 'edit' status)
+    if (form.status !== 'awaiting' && form.status !== 'edit') {
+      return res.status(400).send({ message: `Only forms with "awaiting" or "edit" status can be deleted. Current status: ${form.status}` });
     }
-    
+
     // Check authorization:
     // 1. User can delete forms they submitted
-    // 2. User can delete forms that were sent to them (if they are a valid receiver)
+    // 2. Admin can delete any form
     const canDelete = form.submittedBy === userEmail || isValidReceiver(form, userEmail, userRole);
-    
+
+    console.log('Auth check:', { canDelete, submittedBy: form.submittedBy, userEmail, userRole });
+
     if (!canDelete) {
       return res.status(403).send({ message: 'You are not authorized to delete this form' });
     }
-    
+
     // Delete the form
     await model.findByIdAndDelete(formId);
-    
+
     console.log(`Form ${formId} deleted successfully by ${userEmail}`);
     res.status(200).send({ message: 'Form deleted successfully' });
-    
+
   } catch (error) {
-    console.error('Error deleting form:', error);
+    console.error('Error deleting form - Name:', error.name, '| Message:', error.message);
     res.status(500).send({ message: 'An error occurred while deleting the form', error: error.message });
   }
 });
@@ -838,12 +1130,12 @@ function isValidReceiver(form, userEmail, userRole) {
   if (userRole === 'admin' || userRole === 'Admin') {
     return true;
   }
-  
+
   // Students cannot delete received forms (they only submit)
   if (userRole === 'Student' || userRole === 'student') {
     return false;
   }
-  
+
   // Check if user's role is in the "to" field
   const toArray = Array.isArray(form.to) ? form.to : [form.to];
   return toArray.includes(userRole);
@@ -852,39 +1144,35 @@ function isValidReceiver(form, userEmail, userRole) {
 // Get forwarded forms for a user (forms they submitted that have been forwarded)
 app.get('/getForwardedFormsForUser', async (req, res) => {
   const { email, role } = req.query;
-  
+
   console.log('Fetching forwarded forms for:', { email, role });
-  
+
   if (!email || !role) {
     return res.status(400).send({ message: 'Missing required parameters: email, role' });
   }
-  
+
   try {
     // Get forms submitted by this user from both student and faculty models
     const [studentForms, facultyForms] = await Promise.all([
       sFormModel.find({ submittedBy: email }),
       fFormModel.find({ submittedBy: email })
     ]);
-    
+
     // Combine and filter forms that have been forwarded (status is not 'awaiting')
     const allForms = [...studentForms, ...facultyForms];
-    const forwardedForms = allForms.filter(form => 
+    const forwardedForms = allForms.filter(form =>
       form.status && form.status !== 'awaiting'
     );
-    
+
     console.log(`Found ${forwardedForms.length} forwarded forms for ${email}`);
-    
+
     // Sort by most recent first
     forwardedForms.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     res.status(200).send(forwardedForms);
-    
+
   } catch (error) {
     console.error('Error fetching forwarded forms:', error);
     res.status(500).send({ message: 'An error occurred while fetching forwarded forms', error: error.message });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Port is up and running at ${PORT}`);
 });

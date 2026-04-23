@@ -692,6 +692,7 @@ function AdminPanel() {
                       <tr>
                         <th>Form No</th>
                         <th>Type</th>
+                        <th>Category</th>
                         <th>Subject</th>
                         <th>Department</th>
                         <th>Status</th>
@@ -715,12 +716,15 @@ function AdminPanel() {
                               {form.type === 'faculty' ? 'Faculty' : 'Student'}
                             </span>
                           </td>
+                          <td>{form.category || '-'}</td>
                           <td>{form.subject}</td>
                           <td>{form.department || 'N/A'}</td>
                           <td>
                             <span style={{ 
                               background: form.status === 'accepted' ? '#22c55e' : 
                                          form.status === 'rejected' ? '#ef4444' : 
+                                         form.status === 'not_approved' ? '#f97316' : 
+                                         form.status === 'cancelled' ? '#6b7280' : 
                                          form.status === 'forwarded' ? '#3b82f6' : '#fbbf24', 
                               color: 'white', 
                               padding: '2px 8px', 

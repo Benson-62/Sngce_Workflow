@@ -1,5 +1,4 @@
-// frontend/src/App.jsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
@@ -14,9 +13,17 @@ import PrincipalPage from './pages/PrincipalPage';
 import ProfilePage from './pages/ProfilePage';
 import MySubmission from './pages/MySubmission';
 import WelcomeAnimation from './pages/WelcomeAnimation';
+import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
 function App() {
+  useEffect(() => {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, []);
   return (
     <Router>
       <div className="App">
@@ -34,6 +41,7 @@ function App() {
           <Route path="/ProfilePage" element={<ProfilePage />} />
           <Route path="/my-submission" element={<MySubmission />} />
           <Route path="/welcome" element={<WelcomeAnimation />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
