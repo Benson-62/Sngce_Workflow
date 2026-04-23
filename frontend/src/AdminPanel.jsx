@@ -14,7 +14,7 @@ function AdminPanel() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get('http://localhost:3096/getAllUsers');
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/getAllUsers`);
         setUsers(res.data || []);
       } catch (err) {
         setUsers([]);
@@ -32,8 +32,8 @@ function AdminPanel() {
     const fetchForms = async () => {
       try {
         const [facultyRes, studentRes] = await Promise.all([
-          axios.get('http://localhost:3096/getAllFForms'),
-          axios.get('http://localhost:3096/getAllSForms')
+          axios.get(`${import.meta.env.VITE_API_URL}/getAllFForms`),
+          axios.get(`${import.meta.env.VITE_API_URL}/getAllSForms`)
         ]);
         
         const facultyWithType = facultyRes.data.map(form => ({ ...form, type: 'faculty' }));
@@ -106,7 +106,7 @@ function AdminPanel() {
       const payload = { email, updates: { ...editValues } };
       // Convert empty year to undefined
       if (payload.updates.year === '') delete payload.updates.year;
-      const res = await axios.put('http://localhost:3096/updateUser', payload);
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/updateUser`, payload);
       const updated = res.data;
       setUsers(prev => prev.map(u => (u.email === email ? { ...u, ...updated } : u)));
       cancelEditUser();
@@ -133,7 +133,7 @@ function AdminPanel() {
     }
 
     try {
-      await axios.post('http://localhost:3096/createAccount', newUser);
+      await axios.post(`${import.meta.env.VITE_API_URL}/createAccount`, newUser);
       
       // Add to local state
       setUsers(prev => [...prev, { ...newUser, password: undefined }]);
@@ -245,10 +245,10 @@ function AdminPanel() {
           // inline upload without waiting for manual button
           setIsUploadingCsv(true);
           try {
-            const res = await axios.post('http://localhost:3096/bulkCreateUsers', { users: rows });
+            const res = await axios.post(`${import.meta.env.VITE_API_URL}/bulkCreateUsers`, { users: rows });
             const data = res.data || {};
             try {
-              const refreshed = await axios.get('http://localhost:3096/getAllUsers');
+              const refreshed = await axios.get(`${import.meta.env.VITE_API_URL}/getAllUsers`);
               setUsers(refreshed.data || []);
             } catch (_) {}
             alert(`Import complete: ${data.createdCount || 0} created, ${data.failedCount || 0} failed.`);
@@ -279,7 +279,7 @@ function AdminPanel() {
         const userEmail = token.email;
         const userRole = token.role;
 
-        await axios.delete('http://localhost:3096/deleteForm', {
+        await axios.delete(`${import.meta.env.VITE_API_URL}/deleteForm`, {
           data: { formId, formType, userEmail, userRole }
         });
         

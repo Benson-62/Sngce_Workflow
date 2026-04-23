@@ -67,12 +67,12 @@ export default function ReceivedFormView() {
       setLoading(true);
       setError('');
       try {
-        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+        let res = await axios.get(`${import.meta.env.VITE_API_URL}/getSFormById/${id}`);
         setForm(res.data);
         setRemarks(res.data.remarks || '');
       } catch (err1) {
         try {
-          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+          let res = await axios.get(`${import.meta.env.VITE_API_URL}/getFFormById/${id}`);
           setForm(res.data);
           setRemarks(res.data.remarks || '');
         } catch (err2) {
@@ -101,7 +101,7 @@ const handleAction = async (action) => {
       const formType = form.owner === 'student' ? 'student' : 'faculty';
 
       // 1. Capture the response from the API call
-      const response = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      const response = await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId: form._id || form.id,
         formType,
         remarks,

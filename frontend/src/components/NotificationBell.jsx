@@ -37,7 +37,7 @@ const NotificationBell = () => {
     const fetchNotifications = async () => {
         if (!email) return;
         try {
-            const res = await axios.get(`http://localhost:3096/notifications?email=${email}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/notifications?email=${email}`);
             setNotifications(res.data);
             const count = res.data.filter(n => !n.isRead).length;
             setUnreadCount(count);
@@ -64,7 +64,7 @@ const NotificationBell = () => {
     const handleNotificationClick = async (notification) => {
         // Mark as read
         try {
-            await axios.put(`http://localhost:3096/markNotificationRead/${notification._id}`);
+            await axios.put(`${import.meta.env.VITE_API_URL}/markNotificationRead/${notification._id}`);
             fetchNotifications(); // Refresh
         } catch (error) {
             console.error("Error marking read", error);
@@ -108,7 +108,7 @@ const NotificationBell = () => {
     const handleMarkAllRead = async () => {
         if (!email) return;
         try {
-            await axios.put('http://localhost:3096/markAllNotificationsRead', { email });
+            await axios.put(`${import.meta.env.VITE_API_URL}/markAllNotificationsRead`, { email });
             fetchNotifications();
         } catch (error) {
             console.error("Error mark all read", error);

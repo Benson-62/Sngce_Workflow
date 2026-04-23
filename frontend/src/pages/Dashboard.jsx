@@ -189,7 +189,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
         const token = jwtDecode(localStorage.getItem('token'));
         const backendFormType = formType === 'staff' ? 'faculty' : formType;
         
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
           formId,
           formType: backendFormType,
           status: newStatus,
@@ -239,7 +239,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
         // Map 'staff' to 'faculty' for backend compatibility
         const backendFormType = formType === 'staff' ? 'faculty' : formType;
 
-        await axios.delete('http://localhost:3096/deleteForm', {
+        await axios.delete(`${import.meta.env.VITE_API_URL}/deleteForm`, {
           data: { formId, formType: backendFormType, userEmail, userRole }
         });
         
@@ -530,7 +530,7 @@ function Dashboard() {
       setIsSaving(true);
       try {
         const token = jwtDecode(localStorage.getItem('token'));
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
           formId: submission._id,
           formType: submission.owner === 'student' ? 'student' : 'faculty',
           remarks,
@@ -687,7 +687,7 @@ function Dashboard() {
     const { remarks, status } = editRows[formId] || {};
     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
     try {
-      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId,
         formType,
         remarks,
@@ -729,7 +729,7 @@ function Dashboard() {
   // Function for FA to fetch forms with year and div
   const fetchReceivedFA = async (yearToFetch, divToFetch) => {
     try {
-      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(yearToFetch)}&div=${encodeURIComponent(divToFetch)}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(yearToFetch)}&div=${encodeURIComponent(divToFetch)}`);
       console.log(res)
       setReceivedSubmissions(res.data || []);
     } catch (err) {
@@ -745,7 +745,7 @@ function Dashboard() {
       const params = new URLSearchParams();
       params.set('role', role);
       if (department) params.set('department', department);
-      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?${params.toString()}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/getReceivedFormsForUser?${params.toString()}`);
       setReceivedSubmissions(res.data || []);
     } catch (err) {
       setErrorReceived('Failed to fetch received submissions');
@@ -756,7 +756,7 @@ function Dashboard() {
 
   const fetchFA = async () => {
     try {
-      const res = await axios.get(`http://localhost:3096/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
         if (res.data && res.data.length > 0) {
           const yearFromAPI = res.data[0].year;
           const divFromAPI = res.data[0].div;
@@ -801,7 +801,7 @@ function Dashboard() {
       const fetchSubmissions = async () => {
         try {
           console.log('Fetching submissions for:', email, role);
-          const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+          const res = await axios.get(`${import.meta.env.VITE_API_URL}/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
           setSubmissions(res.data || []);
         } catch (err) {
           console.error('Error fetching submissions:', err);

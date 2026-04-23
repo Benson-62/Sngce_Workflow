@@ -68,11 +68,11 @@ export default function SubmissionView() {
       setLoading(true);
       setError('');
       try {
-        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+        let res = await axios.get(`${import.meta.env.VITE_API_URL}/getSFormById/${id}`);
         setSubmission(res.data);
       } catch (err1) {
         try {
-          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+          let res = await axios.get(`${import.meta.env.VITE_API_URL}/getFFormById/${id}`);
           setSubmission(res.data);
         } catch (err2) {
           setError('Submission not found or failed to load.');
@@ -131,7 +131,7 @@ export default function SubmissionView() {
       const token = jwtDecode(localStorage.getItem('token'));
       const backendFormType = submission.owner === 'staff' ? 'faculty' : submission.owner;
       
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId: submission._id,
         formType: backendFormType,
         status: action,
@@ -142,11 +142,11 @@ export default function SubmissionView() {
       // Refresh the submission data
       const fetchSubmission = async () => {
         try {
-          let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
+          let res = await axios.get(`${import.meta.env.VITE_API_URL}/getSFormById/${id}`);
           setSubmission(res.data);
         } catch (err1) {
           try {
-            let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
+            let res = await axios.get(`${import.meta.env.VITE_API_URL}/getFFormById/${id}`);
             setSubmission(res.data);
           } catch (err2) {
             console.error('Failed to refresh submission');
@@ -596,7 +596,7 @@ export default function SubmissionView() {
                       setIsSubmitting(true);
                       try {
                         const backendFormType = submission.owner === 'staff' ? 'faculty' : submission.owner;
-                        await axios.post('http://localhost:3096/sendReminder', {
+                        await axios.post(`${import.meta.env.VITE_API_URL}/sendReminder`, {
                           formId: submission._id,
                           formType: backendFormType,
                           submitterEmail: currentUser.email,

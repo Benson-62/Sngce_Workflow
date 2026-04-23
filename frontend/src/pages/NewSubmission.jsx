@@ -252,7 +252,7 @@ function NewSubmission() {
       
       if (editMode && editFormId) {
         // Form resubmission with additional remarks
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
           formId: editFormId,
           formType: 'student',
           status: 'edit', // Keeps it in edit status or puts it in awaiting? Usually, submission from edit returns it to awaiting
@@ -264,7 +264,7 @@ function NewSubmission() {
         // For now, only additional remarks are supported as requested: "Do NOT create new form on edit. Only allow additional remarks after edit."
         alert('Form remarks updated and resubmitted successfully!');
       } else {
-        await axios.post('http://localhost:3096/studentFormSubmission', payload, {
+        await axios.post(`${import.meta.env.VITE_API_URL}/studentFormSubmission`, payload, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -308,7 +308,7 @@ function NewSubmission() {
       
       if (editMode && editFormId) {
         // Form resubmission with additional remarks
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
           formId: editFormId,
           formType: 'faculty',
           status: 'edit',
@@ -317,7 +317,7 @@ function NewSubmission() {
         });
         alert('Form remarks updated and resubmitted successfully!');
       } else {
-        await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
+        await axios.post(`${import.meta.env.VITE_API_URL}/facultyFormSubmission`, payload, {
           headers: {
             'Content-Type': 'application/json',
           },

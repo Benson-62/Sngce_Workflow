@@ -17,7 +17,7 @@ export default function ReceivedForms({ previewMode }) {
         role : role,
         department : email
       });
-    axios.get(`http://localhost:3096/getReceivedFormsForUser`, payload)
+    axios.get(`${import.meta.env.VITE_API_URL}/getReceivedFormsForUser`, payload)
       .then(res => setForms(res.data || []))
       .catch(() => setForms([]))
       .finally(() => setLoading(false));

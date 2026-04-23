@@ -61,7 +61,7 @@ function PrincipalPage() {
     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
     try {
       const token = jwtDecode(localStorage.getItem('token'));
-      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId,
         formType,
         remarks,
@@ -90,7 +90,7 @@ function PrincipalPage() {
       const formId = selectedForm._id || selectedForm.id;
       const formType = selectedForm.owner === 'student' ? 'student' : 'faculty';
       
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId,
         formType,
         status: action,
@@ -169,7 +169,7 @@ function PrincipalPage() {
     
     try {
       const token = jwtDecode(localStorage.getItem('token'));
-      await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
         formId,
         formType,
         remarks: defaultRemarks,
@@ -211,7 +211,7 @@ function PrincipalPage() {
     const fetchReceived = async () => {
       try {
         // Principal needs role and potentially department from token
-        let url = `http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
+        let url = `${import.meta.env.VITE_API_URL}/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
         
         // Add department if available in token (though Principal should see all departments)
         if (token.department) {
