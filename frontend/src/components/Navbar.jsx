@@ -67,11 +67,11 @@ function Navbar() {
       <div className="nav-brand">
         <Link to="/dashboard" className="brand-link">
           <img
-            src="/public/sngce.jpg"
+            src="/sngce.jpg"
             alt="Workflow Logo"
             className="nav-logo"
             onError={(e) => {
-              e.target.style.display = 'none';
+              e.target.style.display = "none";
             }}
           />
           <span className="brand-text">Workflow</span>
