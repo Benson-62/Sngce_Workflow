@@ -61,7 +61,7 @@ export default function SettingsPage() {
     }
     setPwLoading(true);
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/changePassword`, {
+      await axios.put('/changePassword', {
         email: userInfo.email,
         currentPassword: pwForm.current,
         newPassword: pwForm.newPw,
@@ -80,7 +80,7 @@ export default function SettingsPage() {
     setClearMsg(null);
     if (!window.confirm('Clear all read notifications?')) return;
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/clearNotifications`, { data: { email: userInfo.email } });
+      await axios.delete('/clearNotifications', { data: { email: userInfo.email } });
       setClearMsg({ type: 'success', text: 'Read notifications cleared.' });
     } catch {
       setClearMsg({ type: 'error', text: 'Failed to clear notifications.' });

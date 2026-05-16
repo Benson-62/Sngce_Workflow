@@ -1,15 +1,16 @@
-// frontend/src/pages/RegisterPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './RegisterPage.css';
 
 function RegisterPage() {
   const [formData, setFormData] = useState({
-    name: '',
+    fName: '',
+    lName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'originator'
+    role: 'Student'
   });
   const navigate = useNavigate();
 
@@ -20,15 +21,28 @@ function RegisterPage() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match!');
       return;
     }
-    // TODO: Implement registration logic
-    console.log('Registration attempt:', formData);
-    navigate('/login');
+    
+    try {
+      await axios.post('/createAccount', {
+        fName: formData.fName,
+        lName: formData.lName,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        department: '' // default to empty, user will set on first login
+      });
+      alert('Registration successful! Please login.');
+      navigate('/login');
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data || 'Registration failed');
+    }
   };
 
   return (
@@ -36,14 +50,24 @@ function RegisterPage() {
       <div className="register-container">
         <h2>Register</h2>
         <form onSubmit={handleSubmit} className="register-form">
-          <div className="form-group">
+          <div className="form-group" style={{ display: 'flex', gap: '10px' }}>
             <input
               type="text"
-              name="name"
-              placeholder="Full Name"
-              value={formData.name}
+              name="fName"
+              placeholder="First Name"
+              value={formData.fName}
               onChange={handleChange}
               required
+              style={{ flex: 1 }}
+            />
+            <input
+              type="text"
+              name="lName"
+              placeholder="Last Name"
+              value={formData.lName}
+              onChange={handleChange}
+              required
+              style={{ flex: 1 }}
             />
           </div>
           <div className="form-group">
@@ -63,12 +87,11 @@ function RegisterPage() {
               onChange={handleChange}
               required
             >
-              <option value="originator">Originator</option>
-              <option value="hod">Head of Department</option>
-              <option value="principal">Principal</option>
-              <option value="manager">Manager</option>
-              <option value="committee">Committee Convenor</option>
-              <option value="secretary">Secretary</option>
+              <option value="Student">Student</option>
+              <option value="Faculty">Faculty</option>
+              <option value="HOD">Head of Department</option>
+              <option value="Principal">Principal</option>
+              <option value="Manager">Manager</option>
             </select>
           </div>
           <div className="form-group">

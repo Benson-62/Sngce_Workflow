@@ -21,6 +21,9 @@ app.use(express.json({ limit: '15mb' }));
 const fFormModel = require('./models/facultyForm');
 const sFormModel = require('./models/studentForm');
 const fAdvisorModel = require('./models/facultyAdvisor');
+const Department = require('./models/Department');
+const SystemConfig = require('./models/SystemConfig');
+const RoleDashboardConfig = require('./models/RoleDashboardConfig');
 
 // Notification Model (Inline)
 const NotificationSchema = new mongoose.Schema({
@@ -90,48 +93,39 @@ app.get('/getFacultyAdvisor', async (req, res) => {
     res.status(500).send({ message: 'An error occurred while fetching advisor data.', error: error.message });
   }
 });
-// Filtered Faculty Forms
-app.get('/getFForms', async (req, res) => {
-  var { role, department } = req.body;
-  console.log(role)
-  console.log(department)
+
+// Department Management
+app.get('/api/departments', async (req, res) => {
+  console.log("GET /api/departments hit");
   try {
-    if (role != 'principal' || role != 'manager') {
-      const forms = await fFormModel.find({ to: role, department: department });
-      console.log("1")
-      console.log(forms)
-      res.send(forms.map(s => ({ ...s.toObject(), owner: 'faculty' })));
-    } else {
-      const formVar = await fFormModel.find({ to: role });
-      console.log(formVar)
-      res.send(formVar)
-    }
+    const depts = await Department.find();
+    res.json(depts);
   } catch (error) {
-    console.log(error)
-    res.send(error)
+    res.status(500).send(error);
   }
-})
-// Filtered Student Forms
-app.get('/getSForms', async (req, res) => {
-  var { role, department } = req.body;
-  console.log(role)
-  console.log(department)
+});
+
+app.post('/api/departments', async (req, res) => {
   try {
-    if (role != 'principal' || role != 'manager') {
-      const forms = await sFormModel.find({ to: role, department: department });
-      console.log("1")
-      console.log(forms)
-      res.send(forms.map(s => ({ ...s.toObject(), owner: 'student' })));
-    } else {
-      const formVar = await sFormModel.find({ to: role });
-      console.log(formVar)
-      res.send(formVar)
-    }
+    const { name, shortName } = req.body;
+    if (!name || !shortName) return res.status(400).send("Name and Short Name are required");
+    const dept = new Department({ name, shortName });
+    await dept.save();
+    res.status(201).json(dept);
   } catch (error) {
-    console.log(error)
-    res.send(error)
+    res.status(500).send(error);
   }
-})
+});
+
+app.delete('/api/departments/:id', async (req, res) => {
+  try {
+    await Department.findByIdAndDelete(req.params.id);
+    res.send("Department deleted");
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 // Get all Faculty Forms
 app.get('/getAllFForms', async (req, res) => {
   try {
@@ -318,15 +312,9 @@ app.put('/updateUser', async (req, res) => {
     if (typeof updates.fName === 'string') changes.fName = updates.fName.trim();
     if (typeof updates.lName === 'string') changes.lName = updates.lName.trim();
     if (typeof updates.role === 'string') {
-      if (!allowedRoles.has(updates.role)) {
-        return res.status(400).send({ message: `Invalid role: ${updates.role}` });
-      }
       changes.role = updates.role;
     }
     if (typeof updates.department === 'string') {
-      if (!allowedDepartments.has(updates.department)) {
-        return res.status(400).send({ message: `Invalid department: ${updates.department}` });
-      }
       changes.department = updates.department;
     }
     if (updates.year !== undefined) {
@@ -357,6 +345,30 @@ app.put('/updateUser', async (req, res) => {
       return res.status(404).send({ message: 'User not found' });
     }
 
+    if (updated.role === 'FacultyAdvisor' && updated.year && updated.div && updated.department) {
+      // Sync with fAdvisorModel
+      const existingAssignment = await fAdvisorModel.findOne({
+        year: updated.year,
+        div: updated.div,
+        department: updated.department
+      });
+
+      if (existingAssignment) {
+        const hasFaculty = existingAssignment.facultyNames.some(f => f.email === email);
+        if (!hasFaculty) {
+          existingAssignment.facultyNames.push({ name: `${updated.fName} ${updated.lName}`, email });
+          await existingAssignment.save();
+        }
+      } else {
+        await new fAdvisorModel({
+          year: updated.year,
+          div: updated.div,
+          department: updated.department,
+          facultyNames: [{ name: `${updated.fName} ${updated.lName}`, email }]
+        }).save();
+      }
+    }
+
     // Remove password from response
     delete updated.password;
     res.status(200).send(updated);
@@ -366,94 +378,21 @@ app.put('/updateUser', async (req, res) => {
   }
 });
 
-// Bulk create users from an array of user objects
-app.post('/bulkCreateUsers', async (req, res) => {
-  const { users } = req.body;
-
-  if (!Array.isArray(users) || users.length === 0) {
-    return res.status(400).send({ message: 'Request body must include a non-empty users array.' });
-  }
-
-  const allowedRoles = new Set(['Student', 'Faculty', 'Principal', 'Manager', 'HOD', 'FacultyAdvisor', 'Admin']);
-  const allowedDepartments = new Set(['CSE', 'NASB', 'ECE', 'EEE', 'ME', 'CE', 'AI', 'CS', 'MCA']);
-
-  const roleMap = {
-    student: 'Student',
-    faculty: 'Faculty',
-    principal: 'Principal',
-    manager: 'Manager',
-    hod: 'HOD',
-    facultyadvisor: 'FacultyAdvisor',
-    'faculty advisor': 'FacultyAdvisor',
-    admin: 'Admin'
-  };
-
-  const deptMap = {
-    cse: 'CSE', nasb: 'NASB', ece: 'ECE', eee: 'EEE', me: 'ME', ce: 'CE', ai: 'AI', cs: 'CS', mca: 'MCA'
-  };
-
-  const created = [];
-  const failed = [];
-
-  for (const raw of users) {
-    try {
-      const fName = (raw.fName || '').toString().trim();
-      const lName = (raw.lName || '').toString().trim();
-      const email = (raw.email || '').toString().trim().toLowerCase();
-      const password = (raw.password || '').toString();
-      let role = (raw.role || '').toString().trim();
-      let department = (raw.department || '').toString().trim();
-      const div = raw.div ? raw.div.toString().trim() : undefined;
-      const year = raw.year !== undefined && raw.year !== null && raw.year !== '' ? Number(raw.year) : undefined;
-
-      if (!fName || !lName || !email || !password || !role || !department) {
-        failed.push({ email: email || raw.email || '', reason: 'Missing required fields' });
-        continue;
-      }
-
-      // Normalize role and department
-      const roleKey = role.toLowerCase();
-      if (roleMap[roleKey]) role = roleMap[roleKey];
-      // Capitalize single-word roles otherwise
-      if (!allowedRoles.has(role)) {
-        failed.push({ email, reason: `Invalid role: ${role}` });
-        continue;
-      }
-
-      const deptKey = department.toLowerCase();
-      if (deptMap[deptKey]) department = deptMap[deptKey];
-      if (!allowedDepartments.has(department)) {
-        failed.push({ email, reason: `Invalid department: ${department}` });
-        continue;
-      }
-
-      // Check duplicate
-      const existing = await logmodel.findOne({ email });
-      if (existing) {
-        failed.push({ email, reason: 'Email already exists' });
-        continue;
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const payload = { fName, lName, email, password: hashedPassword, role, department };
-      if (div) payload.div = div;
-      if (Number.isFinite(year)) payload.year = year;
-
-      const saved = await new logmodel(payload).save();
-      created.push({ email: saved.email });
-    } catch (err) {
-      console.error('Failed to create user from bulk:', err);
-      failed.push({ email: (raw && raw.email) || '', reason: 'Unexpected error' });
+// Delete user
+app.delete('/deleteUser/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const deletedUser = await logmodel.findOneAndDelete({ email });
+    if (!deletedUser) {
+      return res.status(404).send({ message: 'User not found' });
     }
+    res.status(200).send({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).send({ message: 'Failed to delete user', error: error.message });
   }
-
-  res.status(200).send({
-    createdCount: created.length,
-    failedCount: failed.length,
-    created,
-    failed
-  });
 });
+
 
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -466,7 +405,7 @@ app.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { _id: usr._id, email: usr.email, role: usr.role, department: usr.department, year: usr.year, div: usr.div },
-      'pineapplepie',
+      process.env.JWT_SECRET || 'pineapplepie',
       { expiresIn: '2h' }
     );
 
@@ -484,7 +423,35 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.put('/updateMyDepartment', async (req, res) => {
+  const { email, department } = req.body;
+  try {
+    const usr = await logmodel.findOneAndUpdate({ email }, { department }, { new: true });
+    if (!usr) return res.status(404).send("User not found");
+
+    const token = jwt.sign(
+      { _id: usr._id, email: usr.email, role: usr.role, department: usr.department, year: usr.year, div: usr.div },
+      process.env.JWT_SECRET || 'pineapplepie',
+      { expiresIn: '2h' }
+    );
+    res.send({ token, department: usr.department });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("Failed to update department");
+  }
+});
+
 // Get all users
+app.get('/api/user/profile/:email', async (req, res) => {
+  try {
+    const user = await logmodel.findOne({ email: req.params.email }).select('-password').lean();
+    if (!user) return res.status(404).send('User not found');
+    res.json(user);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 app.get('/getAllUsers', async (req, res) => {
   try {
     const users = await logmodel.find();
@@ -802,6 +769,146 @@ app.delete('/clearNotifications', async (req, res) => {
   }
 });
 
+
+// 2. System Config Routes (Subjects)
+app.get('/api/settings/configs', async (req, res) => {
+  const { type } = req.query;
+  try {
+    const query = type ? { configType: type, isActive: true } : { isActive: true };
+    const configs = await SystemConfig.find(query);
+    res.send(configs);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.post('/api/settings/configs', async (req, res) => {
+  try {
+    const { _id, ...data } = req.body;
+    if (_id) {
+      const updated = await SystemConfig.findByIdAndUpdate(_id, data, { new: true });
+      return res.send(updated);
+    }
+    const newConfig = new SystemConfig(req.body);
+    await newConfig.save();
+    res.send(newConfig);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.put('/api/settings/configs/:id', async (req, res) => {
+  try {
+    const updated = await SystemConfig.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.send(updated);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.delete('/api/settings/configs/:id', async (req, res) => {
+  try {
+    await SystemConfig.findByIdAndDelete(req.params.id);
+    res.send({ message: 'Config deleted' });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// 2. Role Dashboard Config Routes (RBAC)
+app.get('/api/admin/role-dashboard', async (req, res) => {
+  try {
+    const configs = await RoleDashboardConfig.find();
+    res.send(configs);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.get('/api/admin/role-dashboard/:role', async (req, res) => {
+  try {
+    const config = await RoleDashboardConfig.findOne({ role: new RegExp(`^${req.params.role}$`, 'i') });
+    res.send(config || {}); // Send empty object if none exists so frontend can use defaults
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.post('/api/admin/role-dashboard', async (req, res) => {
+  try {
+    const { role, permissions, dashboardWidgets } = req.body;
+    let config = await RoleDashboardConfig.findOne({ role: new RegExp(`^${role}$`, 'i') });
+    if (config) {
+      config.permissions = permissions;
+      config.dashboardWidgets = dashboardWidgets;
+      await config.save();
+    } else {
+      config = new RoleDashboardConfig({ role, permissions, dashboardWidgets });
+      await config.save();
+    }
+    res.send(config);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// Helper: generate a temporary password
+const generateTempPassword = () => 'Sngce@123';
+
+app.post('/api/users/bulk', async (req, res) => {
+  const { users } = req.body;
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).json({ error: 'No user data received' });
+  }
+
+  const created = [];
+  const updated = [];
+  const errors = [];
+
+  for (const u of users) {
+    try {
+      const { fName, lName, email, department, role, year, div } = u;
+      if (!fName || !lName || !email) {
+        throw new Error('Missing required fields (First Name, Last Name, Email)');
+      }
+
+      const existing = await logmodel.findOne({ email });
+      
+      const userData = {
+        fName,
+        lName,
+        department,
+        role: role || 'Student',
+        year: year ? Number(year) : undefined,
+        div,
+      };
+
+      if (existing) {
+        // Update existing user
+        await logmodel.updateOne({ email }, { $set: userData });
+        updated.push({ email });
+      } else {
+        // Create new user
+        let rawPwd = u.password?.trim();
+        if (!rawPwd) rawPwd = generateTempPassword();
+        userData.password = await bcrypt.hash(rawPwd, 10);
+        userData.email = email;
+        const newUser = new logmodel(userData);
+        await newUser.save();
+        created.push({ email, tempPassword: rawPwd });
+      }
+    } catch (e) {
+      errors.push({ email: u.email, message: e.message });
+    }
+  }
+
+  res.json({ 
+    created: created.length, 
+    updated: updated.length, 
+    createdDetails: created, 
+    errors 
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Port is up and running at ${PORT}`);
@@ -1176,5 +1283,54 @@ app.get('/getForwardedFormsForUser', async (req, res) => {
   } catch (error) {
     console.error('Error fetching forwarded forms:', error);
     res.status(500).send({ message: 'An error occurred while fetching forwarded forms', error: error.message });
+  }
+});
+
+// Get aggregated dashboard stats
+app.get('/api/stats/dashboard', async (req, res) => {
+  const { role, email } = req.query;
+  try {
+    const totalUsers = await logmodel.countDocuments();
+    
+    // Get forms
+    const studentForms = await sFormModel.find();
+    const facultyForms = await fFormModel.find();
+    const allForms = [...studentForms, ...facultyForms];
+    
+    // Calculate forms by status
+    const statusCounts = {};
+    allForms.forEach(form => {
+      const s = form.status || 'unknown';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+    const formsByStatus = Object.keys(statusCounts).map(s => ({ name: s.toUpperCase(), value: statusCounts[s] }));
+    
+    // Calculate forms by department
+    const deptCounts = {};
+    allForms.forEach(form => {
+      const d = form.department || 'Unknown';
+      deptCounts[d] = (deptCounts[d] || 0) + 1;
+    });
+    const formsByDepartment = Object.keys(deptCounts).map(d => ({ name: d, value: deptCounts[d] }));
+    
+    // Recent forms (last 5)
+    allForms.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const recentForms = allForms.slice(0, 5).map(f => ({
+      _id: f._id,
+      subject: f.subject || f.purpose,
+      status: f.status,
+      date: f.createdAt,
+      type: f.studentId ? 'Student' : 'Faculty'
+    }));
+
+    res.send({
+      totalUsers,
+      formsByStatus,
+      formsByDepartment,
+      recentForms
+    });
+  } catch (error) {
+    console.error("Error fetching stats:", error);
+    res.status(500).send({ error: "Failed to fetch stats" });
   }
 });

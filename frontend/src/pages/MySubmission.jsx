@@ -38,9 +38,9 @@ function MySubmission() {
       try {
         let url = '';
         if (role === 'Student' || role === 'student') {
-          url = `${import.meta.env.VITE_API_URL}/getSFormsByUser?email=${encodeURIComponent(email)}`;
+          url = `/getSFormsByUser?email=${encodeURIComponent(email)}`;
         } else {
-          url = `${import.meta.env.VITE_API_URL}/getFFormsByUser?email=${encodeURIComponent(email)}`;
+          url = `/getFFormsByUser?email=${encodeURIComponent(email)}`;
         }
         const res = await axios.get(url);
         setSubmissions(res.data || []);

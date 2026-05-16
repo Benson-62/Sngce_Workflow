@@ -103,11 +103,7 @@ function Navbar() {
               <Link to="/submission/new" onClick={closeMobileMenu}>New Submission</Link>
             )}
             {userRole === 'admin' && (
-              <>
-                <Link to="/admin" onClick={closeMobileMenu}>Admin</Link>
-                <Link to="/admin/users" onClick={closeMobileMenu}>Users</Link>
-                <Link to="/admin/logs" onClick={closeMobileMenu}>Logs</Link>
-              </>
+              <Link to="/admin" onClick={closeMobileMenu}>Admin</Link>
             )}
             {/* Principal Panel - Only show for Principal role */}
             {(userRole === 'Principal' || userRole === 'principal') && (

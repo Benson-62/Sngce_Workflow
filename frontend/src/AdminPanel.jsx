@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import './AdminPanel.css';
+import GlobalSettings from './components/admin/GlobalSettings';
+import DashboardBuilder from './components/admin/DashboardBuilder';
+import AccessControl from './components/admin/AccessControl';
+import BulkUserImport from './components/admin/BulkUserImport';
+import DepartmentManagement from './components/admin/DepartmentManagement';
 
 function AdminPanel() {
   const [section, setSection] = useState('dashboard');
@@ -10,16 +15,40 @@ function AdminPanel() {
   // Load real users from backend
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [dynamicRoles, setDynamicRoles] = useState([]);
+  const [dynamicDepartments, setDynamicDepartments] = useState([]);
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/getAllUsers`);
-        setUsers(res.data || []);
-      } catch (err) {
-        setUsers([]);
-      }
-    };
+    if (section === 'users') {
+      const fetchConfigs = async () => {
+        try {
+          const [resRole, resDept] = await Promise.all([
+            axios.get(`/api/settings/configs?type=role`),
+            axios.get(`/api/departments`)
+          ]);
+          if (Array.isArray(resRole.data)) {
+            setDynamicRoles(resRole.data.map(r => r.value));
+          }
+          if (Array.isArray(resDept.data)) {
+            setDynamicDepartments(resDept.data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch dynamic configs", err);
+        }
+      };
+      fetchConfigs();
+    }
+  }, [section]);
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get('/getAllUsers');
+      setUsers(res.data || []);
+    } catch (err) {
+      setUsers([]);
+    }
+  };
+
+  useEffect(() => {
     fetchUsers();
   }, []);
 
@@ -32,8 +61,8 @@ function AdminPanel() {
     const fetchForms = async () => {
       try {
         const [facultyRes, studentRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/getAllFForms`),
-          axios.get(`${import.meta.env.VITE_API_URL}/getAllSForms`)
+          axios.get('/getAllFForms'),
+          axios.get('/getAllSForms')
         ]);
         
         const facultyWithType = facultyRes.data.map(form => ({ ...form, type: 'faculty' }));
@@ -66,17 +95,18 @@ function AdminPanel() {
     department: 'CSE'
   });
 
-  // CSV import state
-  const [csvUsers, setCsvUsers] = useState([]);
-  const [csvErrors, setCsvErrors] = useState([]);
-  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
   // User management actions
-  const handleDeleteUser = (email) => {
+  const handleDeleteUser = async (email) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      const updated = users.filter(u => u.email !== email);
-      setUsers(updated);
-      // TODO: Call backend to delete user
+      try {
+        await axios.delete(`/deleteUser/${email}`);
+        const updated = users.filter(u => u.email !== email);
+        setUsers(updated);
+      } catch (err) {
+        console.error('Failed to delete user:', err);
+        alert('Failed to delete user');
+      }
     }
   };
 
@@ -106,7 +136,7 @@ function AdminPanel() {
       const payload = { email, updates: { ...editValues } };
       // Convert empty year to undefined
       if (payload.updates.year === '') delete payload.updates.year;
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/updateUser`, payload);
+      const res = await axios.put('/updateUser', payload);
       const updated = res.data;
       setUsers(prev => prev.map(u => (u.email === email ? { ...u, ...updated } : u)));
       cancelEditUser();
@@ -133,7 +163,7 @@ function AdminPanel() {
     }
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/createAccount`, newUser);
+      await axios.post('/createAccount', newUser);
       
       // Add to local state
       setUsers(prev => [...prev, { ...newUser, password: undefined }]);
@@ -162,113 +192,6 @@ function AdminPanel() {
     setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
-  // CSV utilities
-  const expectedHeaders = ['fName','lName','email','password','role','department','div','year'];
-
-  const downloadCsvTemplate = () => {
-    const header = 'fName,lName,email,password,role,department,div,year\n';
-    const example = 'Jane,Doe,jane.doe@sngce.ac.in,TempPass123,Faculty,CSE,,\n';
-    const content = header + example;
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'users_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const parseCsv = (text) => {
-    const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim().length > 0);
-    if (lines.length === 0) return { rows: [], errors: ['Empty CSV'] };
-    const headerLine = lines[0];
-    const headers = headerLine.split(',').map(h => h.trim());
-    // Validate headers minimally (must include required ones)
-    const required = ['fName','lName','email','password','role','department'];
-    const missing = required.filter(h => !headers.includes(h));
-    if (missing.length > 0) {
-      return { rows: [], errors: [`Missing headers: ${missing.join(', ')}`] };
-    }
-    const rows = [];
-    const errors = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line || line.trim() === '') continue;
-      // Simple CSV split; assumes values do not contain embedded commas within quotes
-      const cols = line.split(',');
-      const row = {};
-      headers.forEach((h, idx) => {
-        row[h] = (cols[idx] || '').trim();
-      });
-      // Basic validation
-      if (!row.email || !row.password || !row.fName || !row.lName || !row.role || !row.department) {
-        errors.push(`Row ${i+1}: missing required fields`);
-        continue;
-      }
-      if (row.year && !/^\d+$/.test(row.year)) {
-        errors.push(`Row ${i+1}: year must be a number`);
-        continue;
-      }
-      rows.push({
-        fName: row.fName,
-        lName: row.lName,
-        email: row.email,
-        password: row.password,
-        role: row.role,
-        department: row.department,
-        div: row.div || undefined,
-        year: row.year ? Number(row.year) : undefined
-      });
-    }
-    return { rows, errors };
-  };
-
-  const handleCsvFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      alert('Please select a .csv file');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const text = evt.target.result;
-      const { rows, errors } = parseCsv(text);
-      setCsvUsers(rows);
-      setCsvErrors(errors);
-      if (errors.length > 0) {
-        alert(`Found ${errors.length} issue(s) in CSV. Please fix and re-upload.`);
-      } else if (rows.length > 0) {
-        if (window.confirm(`Upload ${rows.length} users now?`)) {
-          // inline upload without waiting for manual button
-          setIsUploadingCsv(true);
-          try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/bulkCreateUsers`, { users: rows });
-            const data = res.data || {};
-            try {
-              const refreshed = await axios.get(`${import.meta.env.VITE_API_URL}/getAllUsers`);
-              setUsers(refreshed.data || []);
-            } catch (_) {}
-            alert(`Import complete: ${data.createdCount || 0} created, ${data.failedCount || 0} failed.`);
-            setCsvUsers([]);
-            setCsvErrors([]);
-          } catch (error) {
-            console.error('Bulk upload failed', error);
-            alert('Bulk upload failed. Please try again.');
-          } finally {
-            setIsUploadingCsv(false);
-          }
-        }
-      }
-    };
-    reader.readAsText(file);
-    // reset input value so the same file can be reselected after edits
-    e.target.value = '';
-  };
-
-  // Removed manual upload button; uploading happens after selecting a valid CSV
 
   // Form management actions
   const handleDeleteForm = async (formId, formType) => {
@@ -279,7 +202,7 @@ function AdminPanel() {
         const userEmail = token.email;
         const userRole = token.role;
 
-        await axios.delete(`${import.meta.env.VITE_API_URL}/deleteForm`, {
+        await axios.delete('/deleteForm', {
           data: { formId, formType, userEmail, userRole }
         });
         
@@ -322,6 +245,10 @@ function AdminPanel() {
           <button className={`admin-tab ${section === 'submissions' ? 'active' : ''}`} onClick={() => setSection('submissions')}>Submissions</button>
           <button className={`admin-tab ${section === 'received' ? 'active' : ''}`} onClick={() => setSection('received')}>Received</button>
           <button className={`admin-tab ${section === 'settings' ? 'active' : ''}`} onClick={() => setSection('settings')}>Settings</button>
+          <button className={`admin-tab ${section === 'global_settings' ? 'active' : ''}`} onClick={() => setSection('global_settings')}>Global Settings</button>
+          <button className={`admin-tab ${section === 'dashboard_builder' ? 'active' : ''}`} onClick={() => setSection('dashboard_builder')}>Dashboard Builder</button>
+          <button className={`admin-tab ${section === 'access_control' ? 'active' : ''}`} onClick={() => setSection('access_control')}>Access Control</button>
+          <button className={`admin-tab ${section === 'departments' ? 'active' : ''}`} onClick={() => setSection('departments')}>Departments</button>
         </nav>
               <div className="admin-content">
           {section === 'dashboard' && (
@@ -356,39 +283,10 @@ function AdminPanel() {
                   >
                     {showAddUserForm ? 'Cancel' : '+ Add User'}
                   </button>
-                  <button 
-                    className="admin-btn" 
-                    type="button"
-                    onClick={downloadCsvTemplate}
-                    style={{ background: '#0ea5e9' }}
-                  >
-                    Download CSV Template
-                  </button>
-                  <label className="admin-btn" style={{ cursor: 'pointer', background: '#6366f1' }}>
-                    Upload CSV
-                    <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ display: 'none' }} />
-                  </label>
-                  
                 </div>
               </div>
-
-              {(csvUsers.length > 0 || csvErrors.length > 0) && (
-                <div style={{ background: '#f8fafc', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <span>Parsed users: <b>{csvUsers.length}</b></span>
-                    <span>Errors: <b style={{ color: csvErrors.length ? '#dc2626' : '#16a34a' }}>{csvErrors.length}</b></span>
-                  </div>
-                  {csvErrors.length > 0 && (
-                    <ul style={{ marginTop: '8px', color: '#b91c1c' }}>
-                      {csvErrors.slice(0, 5).map((er, idx) => (
-                        <li key={idx}>• {er}</li>
-                      ))}
-                      {csvErrors.length > 5 && <li>…and {csvErrors.length - 5} more</li>}
-                    </ul>
-                  )}
-                </div>
-              )}
               
+
               {showAddUserForm && (
                 <div style={{ 
                   background: '#f8fafc', 
@@ -506,6 +404,9 @@ function AdminPanel() {
                           <option value="HOD">HOD</option>
                           <option value="Principal">Principal</option>
                           <option value="Admin">Admin</option>
+                          {dynamicRoles.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
                         </select>
                       </div>
                       <div>
@@ -525,15 +426,26 @@ function AdminPanel() {
                             fontSize: '14px'
                           }}
                         >
-                          <option value="CSE">Computer Science & Engineering</option>
-                          <option value="NASB">NASB</option>
-                          <option value="ECE">Electronics & Communication Engineering</option>
-                          <option value="EEE">Electrical & Electronics Engineering</option>
-                          <option value="ME">Mechanical Engineering</option>
-                          <option value="CE">Civil Engineering</option>
-                          <option value="AI">Artificial Intelligence</option>
-                          <option value="CS">Computer Science</option>
-                          <option value="MCA">Master of Computer Applications</option>
+                          <option value="">Select Department</option>
+                          {dynamicDepartments.map(dept => (
+                            <option key={dept._id} value={dept.shortName}>
+                              {dept.name} ({dept.shortName})
+                            </option>
+                          ))}
+                          {/* Show defaults that aren't in dynamicDepartments */}
+                          {[
+                            { v: "CSE", n: "Computer Science & Engineering" },
+                            { v: "NASB", n: "NASB" },
+                            { v: "ECE", n: "Electronics & Communication Engineering" },
+                            { v: "EEE", n: "Electrical & Electronics Engineering" },
+                            { v: "ME", n: "Mechanical Engineering" },
+                            { v: "CE", n: "Civil Engineering" },
+                            { v: "AI", n: "Artificial Intelligence" },
+                            { v: "CS", n: "Computer Science" },
+                            { v: "MCA", n: "Master of Computer Applications" }
+                          ].filter(d => !dynamicDepartments.some(dyn => dyn.shortName === d.v)).map(d => (
+                            <option key={d.v} value={d.v}>{d.n} ({d.v})</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -594,6 +506,9 @@ function AdminPanel() {
                             <option value="HOD">HOD</option>
                             <option value="Principal">Principal</option>
                             <option value="Admin">Admin</option>
+                            {dynamicRoles.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
                           </select>
                         ) : (
                           u.role
@@ -652,6 +567,10 @@ function AdminPanel() {
               {users.length === 0 && (
                 <div className="no-data">No users found.</div>
               )}
+              
+              <div style={{ marginTop: '30px' }}>
+                <BulkUserImport onImportSuccess={fetchUsers} />
+              </div>
             </div>
           )}
                   {section === 'submissions' && (
@@ -830,6 +749,10 @@ function AdminPanel() {
               </div>
             </div>
           )}
+          {section === 'global_settings' && <GlobalSettings />}
+          {section === 'dashboard_builder' && <DashboardBuilder />}
+          {section === 'access_control' && <AccessControl />}
+          {section === 'departments' && <DepartmentManagement />}
         </div>
       </div>
     </div>

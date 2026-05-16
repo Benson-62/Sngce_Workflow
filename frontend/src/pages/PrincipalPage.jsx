@@ -61,7 +61,7 @@ function PrincipalPage() {
     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
     try {
       const token = jwtDecode(localStorage.getItem('token'));
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
+      const res = await axios.put('/updateFormRemarksStatus', {
         formId,
         formType,
         remarks,
@@ -90,7 +90,7 @@ function PrincipalPage() {
       const formId = selectedForm._id || selectedForm.id;
       const formType = selectedForm.owner === 'student' ? 'student' : 'faculty';
       
-      await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
+      await axios.put('/updateFormRemarksStatus', {
         formId,
         formType,
         status: action,
@@ -169,7 +169,7 @@ function PrincipalPage() {
     
     try {
       const token = jwtDecode(localStorage.getItem('token'));
-      await axios.put(`${import.meta.env.VITE_API_URL}/updateFormRemarksStatus`, {
+      await axios.put('/updateFormRemarksStatus', {
         formId,
         formType,
         remarks: defaultRemarks,
@@ -211,7 +211,7 @@ function PrincipalPage() {
     const fetchReceived = async () => {
       try {
         // Principal needs role and potentially department from token
-        let url = `${import.meta.env.VITE_API_URL}/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
+        let url = `/getReceivedFormsForUser?role=${encodeURIComponent(role)}`;
         
         // Add department if available in token (though Principal should see all departments)
         if (token.department) {
@@ -290,7 +290,7 @@ function PrincipalPage() {
           <div className="received-forms-section" style={{ flex: 1 }}>
             <h2>Received Forms</h2>
             <div className="submissions-table">
-              {receivedSubmissions.length === 0 ? (
+              {receivedSubmissions.filter(s => !['accepted', 'rejected', 'not_approved', 'cancelled'].includes(s.status?.toLowerCase())).length === 0 ? (
                 <div className="no-forms">
                   <div className="no-forms-icon">📋</div>
                   <h3>No forms received yet</h3>
@@ -311,7 +311,9 @@ function PrincipalPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {receivedSubmissions.map((submission, idx) => (
+                    {receivedSubmissions
+                      .filter(s => !['accepted', 'rejected', 'not_approved', 'cancelled'].includes(s.status?.toLowerCase()))
+                      .map((submission, idx) => (
                       <tr key={submission._id || submission.id || idx}>
                         <td>#{submission.formNo || submission.id || submission._id}</td>
                         <td>{submission.subject}</td>

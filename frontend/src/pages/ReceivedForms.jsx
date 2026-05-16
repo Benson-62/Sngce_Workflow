@@ -17,7 +17,7 @@ export default function ReceivedForms({ previewMode }) {
         role : role,
         department : email
       });
-    axios.get(`${import.meta.env.VITE_API_URL}/getReceivedFormsForUser`, payload)
+    axios.get(`/getReceivedFormsForUser`, payload)
       .then(res => setForms(res.data || []))
       .catch(() => setForms([]))
       .finally(() => setLoading(false));
@@ -35,7 +35,7 @@ export default function ReceivedForms({ previewMode }) {
           <button
             className="view-all-btn"
             style={{ background: '#3182ce', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', fontWeight: 500 }}
-            onClick={() => navigate('/received-forms')}
+            onClick={() => navigate('received-forms')}
           >
             View All
           </button>
