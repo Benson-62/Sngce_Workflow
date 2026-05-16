@@ -189,7 +189,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
         const token = jwtDecode(localStorage.getItem('token'));
         const backendFormType = formType === 'staff' ? 'faculty' : formType;
         
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put('/updateFormRemarksStatus', {
           formId,
           formType: backendFormType,
           status: newStatus,
@@ -239,7 +239,7 @@ function RoleDashboard({ userRole, submissions, navigate, setSubmissions }) {
         // Map 'staff' to 'faculty' for backend compatibility
         const backendFormType = formType === 'staff' ? 'faculty' : formType;
 
-        await axios.delete('http://localhost:3096/deleteForm', {
+        await axios.delete('/deleteForm', {
           data: { formId, formType: backendFormType, userEmail, userRole }
         });
         
@@ -516,6 +516,10 @@ function Dashboard() {
   const [remarks, setRemarks] = useState('');
   const [forwardTo, setForwardTo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [tempDepartment, setTempDepartment] = useState('');
+  const [dynamicDepartments, setDynamicDepartments] = useState([]);
+  const [userEmail, setUserEmail] = useState('');
 
   // FormSidePanel component
   const FormSidePanel = ({ submission }) => {
@@ -530,7 +534,7 @@ function Dashboard() {
       setIsSaving(true);
       try {
         const token = jwtDecode(localStorage.getItem('token'));
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put('/updateFormRemarksStatus', {
           formId: submission._id,
           formType: submission.owner === 'student' ? 'student' : 'faculty',
           remarks,
@@ -687,7 +691,7 @@ function Dashboard() {
     const { remarks, status } = editRows[formId] || {};
     setEditRows(prev => ({ ...prev, [formId]: { ...prev[formId], saving: true } }));
     try {
-      const res = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      const res = await axios.put('/updateFormRemarksStatus', {
         formId,
         formType,
         remarks,
@@ -709,114 +713,115 @@ function Dashboard() {
   };
 
   useEffect(() => {
-  const tokenString = localStorage.getItem('token');
-  if (!tokenString) {
-    navigate('/login');
-    return;
-  }
-  let token;
-  try {
-    token = jwtDecode(tokenString);
-  } catch {
-    navigate('/login');
-    return;
-  }
-  setUserRole(token.role);
-  var email = token.email;
-  var role = token.role;
-  var department = token.department;
-
-  // Function for FA to fetch forms with year and div
-  const fetchReceivedFA = async (yearToFetch, divToFetch) => {
-    try {
-      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(yearToFetch)}&div=${encodeURIComponent(divToFetch)}`);
-      console.log(res)
-      setReceivedSubmissions(res.data || []);
-    } catch (err) {
-      setErrorReceived('Failed to fetch received submissions');
-    } finally {
-      setLoadingReceived(false);
+    const tokenString = localStorage.getItem('token');
+    if (!tokenString) {
+      navigate('/login');
+      return;
     }
-  };
-
-  // Function for other roles to fetch forms without year and div
-  const fetchReceived = async () => {
+    let token;
     try {
-      const params = new URLSearchParams();
-      params.set('role', role);
-      if (department) params.set('department', department);
-      const res = await axios.get(`http://localhost:3096/getReceivedFormsForUser?${params.toString()}`);
-      setReceivedSubmissions(res.data || []);
-    } catch (err) {
-      setErrorReceived('Failed to fetch received submissions');
-    } finally {
-      setLoadingReceived(false);
+      token = jwtDecode(tokenString);
+    } catch {
+      navigate('/login');
+      return;
     }
-  };
 
-  const fetchFA = async () => {
-    try {
-      const res = await axios.get(`http://localhost:3096/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
-        if (res.data && res.data.length > 0) {
-          const yearFromAPI = res.data[0].year;
-          const divFromAPI = res.data[0].div;
+    const initDashboard = async () => {
+      try {
+        // Fetch latest user data and departments list
+        const [resUser, resDepts] = await Promise.all([
+          axios.get(`/api/user/profile/${token.email}`),
+          axios.get(`/api/departments`)
+        ]);
+        
+        const latestUser = resUser.data;
+        setDynamicDepartments(resDepts.data);
+        
+        const email = latestUser.email;
+        const role = latestUser.role;
+        const department = latestUser.department;
 
-        setYear(yearFromAPI);
-        setDiv(divFromAPI);
+        setUserRole(role);
+        setUserEmail(email);
 
-        // Call FA specific fetch for Faculty Advisors
-        fetchReceivedFA(yearFromAPI, divFromAPI);
-      } else {
-        // Handle case where FA has no assignments
-        fetchReceived(); // Use the regular fetch for non-FA users
-      }
-    } catch (err) {
-      // If no advisor assignments exist, fall back to regular received fetch
-      if (err?.response?.status === 404) {
-        fetchReceived();
-      } else {
-        console.error('Error fetching faculty advisor:', err);
-        setErrorReceived('Failed to fetch faculty advisor');
-      }
-    }
-  };
-      
-      // Redirect Principal users to their dedicated panel
-      if (token.role === 'Principal' || token.role === 'principal') {
-        navigate('/principal');
-        return;
-      }
-      
-      // Redirect Admin users to their dedicated panel
-      if (token.role === 'Admin' || token.role === 'admin') {
-        navigate('/admin');
-        return;
-      }
-      
-      setUserRole(token.role);
-      email = token.email;
-      role = token.role;
-      
-      console.log('Dashboard loaded for user:', email, role);
-      const fetchSubmissions = async () => {
-        try {
-          console.log('Fetching submissions for:', email, role);
-          const res = await axios.get(`http://localhost:3096/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
-          setSubmissions(res.data || []);
-        } catch (err) {
-          console.error('Error fetching submissions:', err);
-          setError('Failed to fetch submissions');
-        } finally {
-          setLoading(false);
+        if (role === 'Admin' || role === 'admin') {
+          navigate('/admin');
+          return;
         }
-      };
-      if ((role || '').toLowerCase() === 'facultyadvisor') {
-        fetchFA();
-      } else {
-        fetchReceived(); // single call — removed duplicate
+
+        if (role === 'Principal' || role === 'principal') {
+          navigate('/principal');
+          return;
+        }
+
+        if (!department && role !== 'Admin') {
+          setShowDepartmentModal(true);
+          setLoading(false);
+          setLoadingReceived(false);
+          return;
+        }
+
+        const fetchSubmissionsLocal = async () => {
+          try {
+            const res = await axios.get(`/getFormsForUser?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`);
+            setSubmissions(res.data || []);
+          } catch (err) {
+            setError('Failed to fetch submissions');
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const fetchReceivedLocal = async () => {
+          try {
+            const params = new URLSearchParams();
+            params.set('role', role);
+            if (department) params.set('department', department);
+            const res = await axios.get(`/getReceivedFormsForUser?${params.toString()}`);
+            setReceivedSubmissions(res.data || []);
+          } catch (err) {
+            setErrorReceived('Failed to fetch received submissions');
+          } finally {
+            setLoadingReceived(false);
+          }
+        };
+
+        const fetchFALocal = async () => {
+          try {
+            const res = await axios.get(`/getFacultyAdvisor?email=${encodeURIComponent(email)}&department=${encodeURIComponent(department)}`);
+            if (res.data && res.data.length > 0) {
+              const advisorData = res.data[0];
+              setFaData(advisorData);
+              const { year, div } = advisorData;
+              const resFA = await axios.get(`/getReceivedFormsForUser?role=${encodeURIComponent(role)}&department=${encodeURIComponent(department)}&year=${encodeURIComponent(year)}&div=${encodeURIComponent(div)}`);
+              setReceivedSubmissions(resFA.data || []);
+            } else {
+              fetchReceivedLocal();
+            }
+          } catch (err) {
+            setErrorReceived('Failed to fetch advisor forms');
+          } finally {
+            setLoadingReceived(false);
+          }
+        };
+
+        fetchSubmissionsLocal();
+        if (role === 'FacultyAdvisor') {
+          fetchFALocal();
+        } else {
+          fetchReceivedLocal();
+        }
+
+      } catch (err) {
+        console.error("Dashboard sync error", err);
+        setUserRole(token.role);
+        setUserEmail(token.email);
+        setLoading(false);
       }
-      fetchSubmissions();
-    }, [navigate]);
+    };
+
+    initDashboard();
+  }, [navigate]);
   if (loading) {
     return <div className="dashboard-page"><div style={{ padding: 40, textAlign: 'center' }}>Loading submissions...</div></div>;
   }
@@ -908,7 +913,12 @@ function Dashboard() {
 
       {viewMode === 'current' ? (
         <>
-          <RoleDashboard userRole={userRole} submissions={submissions} navigate={navigate} setSubmissions={setSubmissions} />
+          <RoleDashboard 
+            userRole={userRole} 
+            submissions={submissions.filter(s => !['accepted', 'rejected', 'not_approved', 'cancelled'].includes(s.status?.toLowerCase()))} 
+            navigate={navigate} 
+            setSubmissions={setSubmissions} 
+          />
           <div style={{ marginTop: 48 }}>
             <div className="dashboard-header" style={{ marginBottom: 24 }}>
               <h2 style={{ margin: 0, fontWeight: 700, fontSize: 28}}>Received Submissions</h2>
@@ -919,7 +929,7 @@ function Dashboard() {
           <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>{errorReceived}</div>
         ) : (
           <div className="submissions-table" style={{ marginBottom: 48, maxWidth: 1100, marginLeft: 'auto', marginRight: 'auto', borderRadius: 16, boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)', background: '#fff' }}>
-            {receivedSubmissions.length === 0 ? (
+            {receivedSubmissions.filter(s => !['accepted', 'rejected', 'not_approved', 'cancelled'].includes(s.status?.toLowerCase())).length === 0 ? (
               <div style={{ padding: '32px', textAlign: 'center', color: '#888' }}>No received submissions found.</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -936,7 +946,9 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {receivedSubmissions.map((submission, idx) => (
+                  {receivedSubmissions
+                    .filter(s => !['accepted', 'rejected', 'not_approved', 'cancelled'].includes(s.status?.toLowerCase()))
+                    .map((submission, idx) => (
                     <tr key={submission._id || submission.id || idx}>
                       <td>#{submission.formNo || submission.id || submission._id}</td>
                       <td>{submission.subject}</td>
@@ -1002,12 +1014,58 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Render the side panel when a form is selected */}
-      {activeSidePanelForm && (
-        <FormSidePanel submission={activeSidePanelForm} />
+      {showDepartmentModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1e293b', padding: '2rem', borderRadius: '12px', width: '400px', color: 'white', border: '1px solid #334155' }}>
+            <h2 style={{ marginTop: 0 }}>Welcome!</h2>
+            <p style={{ color: '#94a3b8' }}>Please select your department to continue.</p>
+            <select 
+              value={tempDepartment} 
+              onChange={e => setTempDepartment(e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', marginBottom: '20px', background: '#0f172a', color: 'white', border: '1px solid #475569' }}
+            >
+              <option value="">Select Department</option>
+              {dynamicDepartments.map(dept => (
+                <option key={dept._id} value={dept.shortName}>{dept.name} ({dept.shortName})</option>
+              ))}
+              {/* Show defaults that aren't in dynamicDepartments */}
+              {[
+                { v: "CSE", n: "CSE" },
+                { v: "NASB", n: "NASB" },
+                { v: "ECE", n: "ECE" },
+                { v: "EEE", n: "EEE" },
+                { v: "ME", n: "ME" },
+                { v: "CE", n: "CE" },
+                { v: "AI", n: "AI" },
+                { v: "CS", n: "CS" },
+                { v: "MCA", n: "MCA" }
+              ].filter(d => !dynamicDepartments.some(dyn => dyn.shortName === d.v)).map(d => (
+                <option key={d.v} value={d.v}>{d.n}</option>
+              ))}
+            </select>
+            <button 
+              onClick={async () => {
+                if (!tempDepartment) return alert("Please select a department");
+                try {
+                  const res = await axios.put('/updateMyDepartment', { email: userEmail, department: tempDepartment });
+                  localStorage.setItem('token', res.data.token);
+                  setShowDepartmentModal(false);
+                  window.location.reload();
+                } catch (err) {
+                  alert("Failed to update department");
+                }
+              }}
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', background: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              Save Department
+            </button>
+          </div>
+        </div>
       )}
+      
+      {activeSidePanelForm && <FormSidePanel submission={activeSidePanelForm} />}
     </div>
   );
 }
 
-export default Dashboard; 
+export default Dashboard;

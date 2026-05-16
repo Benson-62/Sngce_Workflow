@@ -37,10 +37,16 @@ const NotificationBell = () => {
     const fetchNotifications = async () => {
         if (!email) return;
         try {
-            const res = await axios.get(`http://localhost:3096/notifications?email=${email}`);
-            setNotifications(res.data);
-            const count = res.data.filter(n => !n.isRead).length;
-            setUnreadCount(count);
+            const res = await axios.get('/notifications', { params: { email } });
+            if (Array.isArray(res.data)) {
+                setNotifications(res.data);
+                const count = res.data.filter(n => !n.isRead).length;
+                setUnreadCount(count);
+            } else {
+                console.warn("Notifications API did not return an array:", res.data);
+                setNotifications([]);
+                setUnreadCount(0);
+            }
         } catch (error) {
             console.error("Error fetching notifications", error);
         }
@@ -64,7 +70,7 @@ const NotificationBell = () => {
     const handleNotificationClick = async (notification) => {
         // Mark as read
         try {
-            await axios.put(`http://localhost:3096/markNotificationRead/${notification._id}`);
+            await axios.put(`/markNotificationRead/${notification._id}`);
             fetchNotifications(); // Refresh
         } catch (error) {
             console.error("Error marking read", error);
@@ -108,7 +114,7 @@ const NotificationBell = () => {
     const handleMarkAllRead = async () => {
         if (!email) return;
         try {
-            await axios.put('http://localhost:3096/markAllNotificationsRead', { email });
+            await axios.put('/markAllNotificationsRead', { email });
             fetchNotifications();
         } catch (error) {
             console.error("Error mark all read", error);

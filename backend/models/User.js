@@ -9,9 +9,7 @@ const userSchema = mongoose.Schema({
     required : true,
   },
   department :{
-    type: String,
-    enum : ["CSE", "NASB","ECE", "EEE", "ME", "CE", "AI", "CS", "MCA"],
-    require: true
+    type: String
   },
   email: {
     type: String, 
@@ -24,7 +22,6 @@ const userSchema = mongoose.Schema({
   },
   role: {
     type: String, 
-    enum : ["Student", "Faculty", "Principal", "Manager", "HOD", "FacultyAdvisor", "Admin"],
     required: true
   },
   div : {

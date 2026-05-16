@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import WelcomeAnimation from '../pages/WelcomeAnimation';
 import './LoginPage.css';
 
@@ -45,19 +46,12 @@ function LoginPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:3096/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password })
+      const response = await axios.post('/login', {
+        email: formData.email,
+        password: formData.password
       });
 
-      if (!response.ok) {
-        const msg = await response.text();
-        setError(msg || 'Login failed');
-        return;
-      }
-
-      const data = await response.json();
+      const data = response.data;
       localStorage.setItem('token', data.token);
       localStorage.setItem('userName', `${data.fName} ${data.lName}`);
       localStorage.setItem('userRole', data.role);
@@ -68,7 +62,7 @@ function LoginPage() {
       setShowAnimation(true);
       
     } catch (err) {
-      setError('Network error');
+      setError(err.response?.data || 'Login failed');
     }
   };
 

@@ -1,17 +1,36 @@
 import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import './ProfilePage.css';
 
 const ProfilePage = () => {
     const [role, setRole] = useState();
     const [email, setEmail] = useState();
     const [department, setDepartment] = useState()
-    useEffect(()=>{
-        const token = jwtDecode(localStorage.getItem('token'));
-        setRole(token.role)
-        setEmail(token.email)
-        setDepartment(token.department)
-    }, []) // ← run only once on mount
+    useEffect(() => {
+        const tokenStr = localStorage.getItem('token');
+        if (!tokenStr) return;
+        
+        const decoded = jwtDecode(tokenStr);
+        const userEmail = decoded.email;
+        
+        const fetchProfile = async () => {
+            try {
+                const res = await axios.get(`/api/user/profile/${userEmail}`);
+                setRole(res.data.role);
+                setEmail(res.data.email);
+                setDepartment(res.data.department);
+            } catch (err) {
+                console.error("Failed to fetch profile", err);
+                // Fallback to token if backend fails
+                setRole(decoded.role);
+                setEmail(decoded.email);
+                setDepartment(decoded.department);
+            }
+        };
+
+        fetchProfile();
+    }, []);
 
  
   return (

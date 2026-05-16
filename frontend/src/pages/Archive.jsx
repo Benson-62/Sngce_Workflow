@@ -28,7 +28,7 @@ export default function Archive() {
         setUserRole(role);
 
         const response = await axios.get(
-          `http://localhost:3096/getArchivedForms?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`
+          `/getArchivedForms?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`
         );
         setArchivedForms(response.data || []);
       } catch (error) {

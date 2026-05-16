@@ -52,6 +52,7 @@ export default function ReceivedFormView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState('');
+  const [canHodAccept, setCanHodAccept] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const letterRef = useRef(null);
@@ -67,14 +68,18 @@ export default function ReceivedFormView() {
       setLoading(true);
       setError('');
       try {
-        let res = await axios.get(`http://localhost:3096/getSFormById/${id}`);
-        setForm(res.data);
-        setRemarks(res.data.remarks || '');
+        let res = await axios.get(`/getSFormById/${id}`);
+        const formData = res.data;
+        setForm(formData);
+        setRemarks(formData.remarks || '');
+        checkHodAcceptance(formData.category);
       } catch (err1) {
         try {
-          let res = await axios.get(`http://localhost:3096/getFFormById/${id}`);
-          setForm(res.data);
-          setRemarks(res.data.remarks || '');
+          let res = await axios.get(`/getFFormById/${id}`);
+          const formData = res.data;
+          setForm(formData);
+          setRemarks(formData.remarks || '');
+          checkHodAcceptance(formData.category);
         } catch (err2) {
           setError('Submission not found or failed to load.');
         }
@@ -82,6 +87,19 @@ export default function ReceivedFormView() {
         setLoading(false);
       }
     };
+
+    const checkHodAcceptance = async (category) => {
+      try {
+        const res = await axios.get(`/api/settings/configs?type=subject`);
+        const subjectConfig = res.data.find(c => c.value === category);
+        if (subjectConfig && subjectConfig.canBeAcceptedAtHodLevel) {
+          setCanHodAccept(true);
+        }
+      } catch (err) {
+        console.error("Failed to check HOD acceptance", err);
+      }
+    };
+
     fetchForm();
   }, [id]);
 
@@ -101,7 +119,7 @@ const handleAction = async (action) => {
       const formType = form.owner === 'student' ? 'student' : 'faculty';
 
       // 1. Capture the response from the API call
-      const response = await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+      const response = await axios.put('/updateFormRemarksStatus', {
         formId: form._id || form.id,
         formType,
         remarks,
@@ -421,8 +439,8 @@ const handleAction = async (action) => {
                 🎯 Quick Actions
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                {/* Accept button only for Principal/Manager and when not final */}
-                {rolePermissions[userRole]?.accept && !isFinal && (
+                {/* Accept button only for Principal/Manager and when not final, or HOD if subject allowed */}
+                {((rolePermissions[userRole]?.accept) || ( (userRole === 'HOD' || userRole === 'hod') && canHodAccept )) && !isFinal && (
                   <button
                     onClick={() => {
                       if (window.confirm('Are you sure you want to accept this form?')) {

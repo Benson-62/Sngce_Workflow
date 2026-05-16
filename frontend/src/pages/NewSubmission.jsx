@@ -45,7 +45,7 @@ const TO_OPTIONS_STAFF = [
   { label: 'Principal', value: 'Principal' },
   { label: 'Manager', value: 'Manager' },
   { label: 'Committee Convenor', value: 'Committee' },
-  { label: 'Secretars', value: 'Secretars' },
+  { label: 'Secretary', value: 'Secretary' },
 ];
 
 const TO_OPTIONS_STUDENT = [
@@ -114,7 +114,25 @@ function NewSubmission() {
   const [showPrintView, setShowPrintView] = useState(false);
   const [attachmentsStudent, setAttachmentsStudent] = useState([]);
   const [attachmentsStaff, setAttachmentsStaff] = useState([]);
-  // Removed email state
+  const [dynamicCategories, setDynamicCategories] = useState([]);
+  const [dynamicDepartments, setDynamicDepartments] = useState([]);
+
+  // Fetch dynamic categories/subjects
+  useEffect(() => {
+    const fetchConfigs = async () => {
+      try {
+        const [resSubj, resDept] = await Promise.all([
+          axios.get(`/api/settings/configs?type=subject`),
+          axios.get(`/api/departments`)
+        ]);
+        setDynamicCategories(resSubj.data.map(c => ({ label: c.value, value: c.value })));
+        setDynamicDepartments(resDept.data.map(d => ({ name: d.name, short: d.shortName })));
+      } catch (err) {
+        console.error("Failed to fetch dynamic configs", err);
+      }
+    };
+    fetchConfigs();
+  }, []);
 
   useEffect(() => {
     const token = jwtDecode(localStorage.getItem('token'));
@@ -252,7 +270,7 @@ function NewSubmission() {
       
       if (editMode && editFormId) {
         // Form resubmission with additional remarks
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put('/updateFormRemarksStatus', {
           formId: editFormId,
           formType: 'student',
           status: 'edit', // Keeps it in edit status or puts it in awaiting? Usually, submission from edit returns it to awaiting
@@ -264,7 +282,7 @@ function NewSubmission() {
         // For now, only additional remarks are supported as requested: "Do NOT create new form on edit. Only allow additional remarks after edit."
         alert('Form remarks updated and resubmitted successfully!');
       } else {
-        await axios.post('http://localhost:3096/studentFormSubmission', payload, {
+        await axios.post('/studentFormSubmission', payload, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -308,7 +326,7 @@ function NewSubmission() {
       
       if (editMode && editFormId) {
         // Form resubmission with additional remarks
-        await axios.put('http://localhost:3096/updateFormRemarksStatus', {
+        await axios.put('/updateFormRemarksStatus', {
           formId: editFormId,
           formType: 'faculty',
           status: 'edit',
@@ -317,7 +335,7 @@ function NewSubmission() {
         });
         alert('Form remarks updated and resubmitted successfully!');
       } else {
-        await axios.post('http://localhost:3096/facultyFormSubmission', payload, {
+        await axios.post('/facultyFormSubmission', payload, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -439,7 +457,7 @@ function NewSubmission() {
           disabled={editMode}
         >
           <option value="" disabled>Select category</option>
-          {PURPOSE_OPTIONS.map((opt) => (
+          {[...PURPOSE_OPTIONS, ...dynamicCategories].map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
           <option value="other">Other</option>
@@ -508,8 +526,14 @@ function NewSubmission() {
           required
         >
           <option value="" disabled>Select department</option>
-          {DEPARTMENT_OPTIONS.map((dept) => (
-            <option key={dept.short} value={dept.short}>
+          {dynamicDepartments.map((dept, idx) => (
+            <option key={`dyn-${idx}`} value={dept.short}>
+              {dept.name} ({dept.short})
+            </option>
+          ))}
+          {/* Show defaults that aren't in dynamicDepartments */}
+          {DEPARTMENT_OPTIONS.filter(d => !dynamicDepartments.some(dyn => dyn.short === d.short)).map((dept, idx) => (
+            <option key={`def-${idx}`} value={dept.short}>
               {dept.name} ({dept.short})
             </option>
           ))}
@@ -577,7 +601,7 @@ function NewSubmission() {
           disabled={editMode}
         >
           <option value="" disabled>Select category</option>
-          {PURPOSE_OPTIONS.map((opt) => (
+          {[...PURPOSE_OPTIONS, ...dynamicCategories].map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
           <option value="other">Other</option>
@@ -655,8 +679,14 @@ function NewSubmission() {
           required
         >
           <option value="" disabled>Select department</option>
-          {DEPARTMENT_OPTIONS.map((dept) => (
-            <option key={dept.short} value={dept.short}>
+          {dynamicDepartments.map((dept, idx) => (
+            <option key={`dyn-${idx}`} value={dept.short}>
+              {dept.name} ({dept.short})
+            </option>
+          ))}
+          {/* Show defaults that aren't in dynamicDepartments */}
+          {DEPARTMENT_OPTIONS.filter(d => !dynamicDepartments.some(dyn => dyn.short === d.short)).map((dept, idx) => (
+            <option key={`def-${idx}`} value={dept.short}>
               {dept.name} ({dept.short})
             </option>
           ))}
@@ -701,13 +731,13 @@ function NewSubmission() {
 
   // Helper to get department short form
   const getDeptShort = (name) => {
-    const found = DEPARTMENT_OPTIONS.find((d) => d.name === name);
+    const found = [...dynamicDepartments, ...DEPARTMENT_OPTIONS.map(d => ({ name: d.name, short: d.short }))].find((d) => d.name === name);
     return found ? found.short : '';
   };
 
   // Helper to get department long name from short
   const getDeptLong = (short) => {
-    const found = DEPARTMENT_OPTIONS.find((d) => d.short === short);
+    const found = [...dynamicDepartments, ...DEPARTMENT_OPTIONS.map(d => ({ name: d.name, short: d.short }))].find((d) => d.short === short);
     return found ? `${found.name} (${found.short})` : short;
   };
 

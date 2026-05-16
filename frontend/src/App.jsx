@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
+import DynamicDashboard from './components/DynamicDashboard';
 import NewSubmission from './pages/NewSubmission';
 import AdminPanel from './AdminPanel';
 import ReceivedForms from './pages/ReceivedForms';
@@ -31,7 +32,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<DynamicDashboard><Dashboard /></DynamicDashboard>} />
           <Route path="/submission/new" element={<NewSubmission />} />
           <Route path="/submission/:id" element={<SubmissionView />} />
           <Route path="/admin" element={<AdminPanel />} />
