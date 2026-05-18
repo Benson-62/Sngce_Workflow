@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3096;
 
 const app = express();
 app.use(cors({
-  origin : "http://187.127.139.224" // frontend url
+  origin: ["http://187.127.139.224", "http://localhost:5173"] // frontend urls
 }));
 app.use(express.json({ limit: '15mb' }));
 
