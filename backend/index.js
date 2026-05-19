@@ -1334,3 +1334,11 @@ app.get('/api/stats/dashboard', async (req, res) => {
     res.status(500).send({ error: "Failed to fetch stats" });
   }
 });
+
+app.get("/health", async (req, res) => {
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    mongodb: mongoose.connection.readyState === 1
+  });
+});
