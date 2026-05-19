@@ -1336,9 +1336,27 @@ app.get('/api/stats/dashboard', async (req, res) => {
 });
 
 app.get("/health", async (req, res) => {
-  res.json({
-    status: "ok",
-    uptime: process.uptime(),
-    mongodb: mongoose.connection.readyState === 1
-  });
+  const start = Date.now();
+
+  try {
+    const dbConnected = mongoose.connection.readyState === 1;
+
+    res.status(200).json({
+      reachable: true,
+      status_code: 200,
+      response_time_ms: Date.now() - start,
+      mongodb_connected: dbConnected,
+      uptime_seconds: process.uptime(),
+      timestamp: new Date().toISOString(),
+      error: null
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      reachable: false,
+      status_code: 500,
+      response_time_ms: Date.now() - start,
+      error: err.message
+    });
+  }
 });
