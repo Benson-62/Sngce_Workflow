@@ -3,7 +3,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-
+require("dotenv").config();
 require('./connection');
 
 const logmodel = require('./models/User');
@@ -1359,4 +1359,8 @@ app.get("/health", async (req, res) => {
       error: err.message
     });
   }
+});
+
+app.get("/version-backend", (req, res) => {
+  res.json({ commit: process.env.COMMIT_SHA || "unknown" });
 });
